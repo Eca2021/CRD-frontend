@@ -1,0 +1,130 @@
+/* src/styles/modal.css */
+/* Base de modales unificada: funciona con ModalBase y NO usa clases genéricas. */
+
+/* src/styles/modal.css */
+.u-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,.45);
+  -webkit-backdrop-filter: blur(1px);
+  backdrop-filter: blur(1px);
+  /* centraremos desde el overlay para no depender de inline */
+  display: grid; 
+  place-items: center;
+
+  /* ✅ usa un valor alto y único */
+  z-index: var(--z-overlay, 11000);
+}
+
+/* el panel va por encima del overlay */
+.u-modal {
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #1f2937);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-md, 12px);
+  box-shadow: var(--shadow-md, 0 6px 18px rgba(0,0,0,.1));
+  width: min(640px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  position: relative;
+
+  z-index: var(--z-modal, 11010); /* ✅ un pelín más alto que el overlay */
+}
+
+
+/* tamaños del panel */
+.u-modal.size-sm { max-width: 420px; }
+.u-modal.size-md { max-width: 640px; }
+.u-modal.size-lg { max-width: 920px; }
+.u-modal.size-full { max-width: 96vw; height: 96vh; }
+
+
+/* Tamaños coherentes en toda la app */
+.u-modal--sm { width: min(420px, 94vw); }
+.u-modal--md { width: min(640px, 96vw); }
+.u-modal--lg { width: min(880px, 98vw); }
+.u-modal--xl { width: min(1100px, 98vw); }
+
+/* Secciones estándar del modal */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  background: var(--modal-header-bg, transparent);
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.modal-body {
+  padding: 14px;
+  background: var(--modal-body-bg, transparent);
+}
+
+.modal-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 14px;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  background: var(--modal-footer-bg, transparent);
+}
+
+/* Opcional: redondeo y sombra ajustables por feature */
+.u-modal {
+  border-radius: var(--modal-radius, var(--radius-md, 12px));
+  box-shadow: var(--modal-shadow, var(--shadow-md, 0 6px 18px rgba(0,0,0,.1)));
+}
+
+/* Responsive: en pantallas muy chicas, usa todo el ancho disponible */
+@media (max-width: 420px) {
+  .u-modal,
+  .u-modal--sm,
+  .u-modal--md,
+  .u-modal--lg,
+  .u-modal--xl {
+    width: 96vw;
+  }
+}
+
+/* DEBUG FUERTE — Quitar luego */
+.ReactModal__Overlay { opacity: 1 !important; visibility: visible !important; }
+.ReactModal__Content { opacity: 1 !important; visibility: visible !important; transform: none !important; }
+
+/* ====== MODAL UNIFICADO ====== */
+.modal--standard .modal-header,
+.modal--standard .modal-body,
+.modal--standard .modal-footer { padding: 16px; }
+
+.modal--standard .modal-header{
+  display:flex; align-items:center; justify-content:space-between;
+  background:#f8fafc; border-bottom:1px solid var(--color-border, #e5e7eb);
+}
+.modal--standard .modal-title{ font-weight:700; font-size:1.05rem }
+
+.modal--standard .modal-body{
+  background: transparent;       /* ❗ evita “card” blanca interna solo en Tax */
+  padding-top: 20px;
+}
+
+.modal--standard .modal-footer{
+  display:flex; gap:8px; justify-content:flex-end;
+  border-top:1px solid var(--color-border, #e5e7eb);
+  background:#fff;
+}
+
+/* Centrado real y sin desplazamientos raros */
+.u-overlay{ display:grid; place-items:center; }
+.u-modal { margin: 0 !important; }
+
+/* Tamaños consistentes */
+.u-modal.size-sm { max-width: 420px; }
+.u-modal.size-md { max-width: 640px; }
+.u-modal.size-lg { max-width: 920px; }
+.u-modal.size-full { max-width: 96vw; height: 96vh; }

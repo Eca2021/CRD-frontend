@@ -1,0 +1,19 @@
+/* src/styles/tokens.css */
+:root{
+  --color-primary: #2563eb;
+  --color-success: #16a34a;
+  --color-danger:  #dc2626;
+  --color-secondary: #e5e7eb;
+
+  --color-text: #0f172a;
+  --color-muted:#6b7280;
+  --color-surface:#ffffff;
+  --color-border:#e5e7eb;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 10px 25px rgba(0,0,0,.15);
+
+  --focus: 0 0 0 3px rgba(37,99,235,.2);
+}

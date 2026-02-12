@@ -1,0 +1,32 @@
+/* src/styles/base.css */
+html, body, #root {
+  height: 100%;
+  background: var(--color-bg);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  color: var(--color-text);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+}
+
+h1, h2, h3 { margin: 0 0 .6rem 0; color: var(--color-text); }
+p { margin: 0 0 .75rem 0; color: var(--color-text); }
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+}
+
+/* Utilidades simples */
+.mt-1 { margin-top: .25rem }
+.mt-2 { margin-top: .5rem }
+.mt-3 { margin-top: .75rem }
+.mt-4 { margin-top: 1rem }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }

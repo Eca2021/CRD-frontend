@@ -1,0 +1,93 @@
+/* src/App.css */
+
+/* Estilos para el layout general de la aplicación con la barra lateral */
+.App-layout {
+  display: flex; /* Habilita flexbox para organizar el sidebar y el contenido */
+  min-height: 100vh; /* Asegura que el layout ocupe toda la altura de la ventana */
+  background-color: #f0f2f5; /* Un fondo gris claro para el área de contenido */
+  width: 100%; /* Asegura que el layout ocupe todo el ancho */
+  position: relative; /* Para posicionar el botón de toggle */
+}
+
+/* El contenido principal, que se moverá */
+.main-content {
+  flex-grow: 1; /* Permite que el contenido principal ocupe todo el espacio restante */
+  padding: 20px; /* Espaciado alrededor del contenido principal */
+  overflow-y: auto; /* Agrega scroll si el contenido es demasiado largo */
+  background-color: #ffffff; /* Fondo blanco para el área de contenido principal */
+  margin: 20px; /* Margen alrededor del contenido para que no toque los bordes */
+  border-radius: 8px; /* Bordes redondeados para la tarjeta de contenido */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); /* Sombra suave para el contenido */
+  /* Transición para que el main-content se mueva suavemente */
+  transition: margin-left 0.3s ease;
+  margin-left: 270px; /* Espacio para el sidebar fijo por defecto (250px sidebar + 20px margin) */
+}
+
+/* Botón de alternar el sidebar (visible solo en móviles) */
+.sidebar-toggle-button {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 1001; /* Por encima del sidebar */
+  background-color: #1abc9c;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  display: none; /* Oculto por defecto en desktop */
+  transition: left 0.3s ease;
+}
+
+/*
+  Media Query para pantallas más pequeñas (móviles y tablets)
+  Aquí el sidebar estará oculto y el main-content ocupará todo el ancho.
+*/
+@media (max-width: 768px) {
+  .App-layout {
+    flex-direction: column; /* Apila los elementos verticalmente */
+  }
+
+  .main-content {
+    margin-left: 0; /* No hay margen izquierdo para el sidebar oculto */
+    width: auto; /* Permite que ocupe el ancho disponible */
+    margin-top: 60px; /* Espacio para el botón de toggle en la parte superior */
+  }
+
+  /* Mostrar el botón de alternar en pantallas pequeñas */
+  .sidebar-toggle-button {
+    display: flex; /* Mostrar el botón */
+  }
+
+  /* Cuando el sidebar está abierto en móvil, el botón se mueve */
+  .App-layout.sidebar-open .sidebar-toggle-button {
+    left: 265px; /* Mueve el botón para que quede fuera del sidebar abierto (250px + 15px margen) */
+  }
+}
+
+/*
+  Media Query para pantallas muy pequeñas (teléfonos)
+  Ajustes adicionales si es necesario.
+*/
+@media (max-width: 480px) {
+  .main-content {
+    padding: 10px;
+    margin: 10px;
+  }
+  .sidebar-toggle-button {
+    width: 35px;
+    height: 35px;
+    font-size: 1em;
+    top: 10px;
+    left: 10px;
+  }
+  .App-layout.sidebar-open .sidebar-toggle-button {
+    left: 230px; /* Ajusta el botón para pantallas muy pequeñas */
+  }
+}
