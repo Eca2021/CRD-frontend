@@ -3,10 +3,12 @@ import Modal from 'react-modal';
 import Swal from 'sweetalert2';
 import { api, endpoints } from '../config/api';
 
+
+
 Modal.setAppElement('#root');
 
 function CreditManagement() {
-    // ESTADOS
+    // ESTADOS cambios de fecha 
     const [creditos, setCreditos] = useState([]);
     const [clientes, setClientes] = useState([]);
     const [tasas, setTasas] = useState([]);
