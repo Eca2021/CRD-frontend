@@ -16,7 +16,17 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-                  echo "¡Conexión exitosa!"
-                  hostname
-                  whoami
-                  pwd
+                      # 1. Entrar a la carpeta del proyecto
+                      cd /var/www/CRD-frontend
+                      
+                      # 2. Sincronizar código desde GitHub
+                      git pull origin main
+                      
+                      # 3. Instalar dependencias (instalará Tailwind v3 del package.json)
+                      npm install
+                      
+                      # 4. Generar el build de producción con el nuevo CSS
+                      npm run build
+                      
+                      # 5. Reiniciar el proceso para aplicar los cambios visuales
+                      pm2 restart credi-frontend
