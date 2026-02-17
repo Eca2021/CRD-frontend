@@ -35,7 +35,10 @@ const ProtectedRoute = ({
   }
 
   if (requiredRoles.length > 0) {
-    const hasRole = requiredRoles.some(role => userRoles.some(ur => ur.toUpperCase() === role.toUpperCase()));
+    const hasRole = requiredRoles.some(role => userRoles.some(ur => {
+      const rName = typeof ur === 'string' ? ur : (ur.nombre || ur.name || '');
+      return rName.toUpperCase() === role.toUpperCase();
+    }));
     console.log("🔍 Verificando roles:", { requiredRoles, hasRole });
     if (!hasRole) {
       console.warn("❌ ProtectedRoute: Falta rol requerido.");

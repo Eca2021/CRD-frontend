@@ -6,43 +6,23 @@ import { api, endpoints } from '../config/api';
 Modal.setAppElement('#root');
 
 function CreditManagement() {
+    // ESTADOS
     const [creditos, setCreditos] = useState([]);
     const [clientes, setClientes] = useState([]);
     const [tasas, setTasas] = useState([]);
     const [formasPago, setFormasPago] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // Details Modal State
     const [selectedCreditDetails, setSelectedCreditDetails] = useState(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-
-    // Modal Create State
     const [isOpen, setIsOpen] = useState(false);
-    const [form, setForm] = useState({
-        id_cliente: '',
-        id_tasa: '',
-        monto: '',
-        cuotas: '',
-        fecha_primer_pago: ''
-    });
-
-    // Search Client State
+    const [form, setForm] = useState({ id_cliente: '', id_tasa: '', monto: '', cuotas: '', fecha_primer_pago: '' });
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredClients, setFilteredClients] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedClientObj, setSelectedClientObj] = useState(null);
-
-    // Preview Data
     const [preview, setPreview] = useState(null);
-
-    // Modal Payment
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-    const [paymentForm, setPaymentForm] = useState({
-        id_detalle_credito: '',
-        id_forma_pago: '',
-        monto_pagado: '',
-        comprobante_nro: ''
-    });
+    const [paymentForm, setPaymentForm] = useState({ id_detalle_credito: '', id_forma_pago: '', monto_pagado: '', comprobante_nro: '' });
     const [selectedCuota, setSelectedCuota] = useState(null);
 
     const loadData = async () => {
@@ -59,15 +39,13 @@ function CreditManagement() {
             setTasas(Array.isArray(tData) ? tData : []);
             setFormasPago(Array.isArray(fpData) ? fpData : []);
         } catch (e) {
-            Swal.fire('Error', e.message || 'Error cargando datos', 'error');
+            Swal.fire('Error', 'Error cargando datos', 'error');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => { loadData(); }, []);
-
-    // --- Create Modal Logic ---
 
     const openCreate = () => {
         setForm({ id_cliente: '', id_tasa: '', monto: '', cuotas: '', fecha_primer_pago: '' });
@@ -77,18 +55,6 @@ function CreditManagement() {
         setIsOpen(true);
     };
 
-    const closeModal = () => {
-        setIsOpen(false);
-        setPreview(null);
-    };
-
-    const onChange = (e) => {
-        const { name, value } = e.target;
-        setForm(p => ({ ...p, [name]: value }));
-        setPreview(null);
-    };
-
-    // Client Search Logic
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setSearchTerm(value);
@@ -111,20 +77,14 @@ function CreditManagement() {
         setSelectedClientObj(client);
         setSearchTerm(`${client.nombre} ${client.apellido}`);
         setShowSuggestions(false);
-        setPreview(null);
-    };
-
-    const clearClient = () => {
-        setForm(p => ({ ...p, id_cliente: '' }));
-        setSelectedClientObj(null);
-        setSearchTerm('');
     };
 
     const calculate = async () => {
-        if (!form.monto || !form.cuotas || !form.id_tasa) {
-            Swal.fire('Atención', 'Complete monto, cuotas y tasa para calcular.', 'warning');
-            return;
-        }
+        // Validación manual para mostrar error específico
+        if (!form.id_cliente) return Swal.fire('Atención', 'Debe seleccionar un cliente primero.', 'warning');
+        if (!form.id_tasa) return Swal.fire('Atención', 'Debe seleccionar una tasa de interés.', 'warning');
+        if (!form.monto) return Swal.fire('Atención', 'Debe ingresar el monto del crédito.', 'warning');
+        if (!form.cuotas) return Swal.fire('Atención', 'Debe ingresar la cantidad de cuotas.', 'warning');
 
         try {
             const data = await api.post(endpoints.credits.preview, {
@@ -135,34 +95,31 @@ function CreditManagement() {
             });
             setPreview(data);
         } catch (e) {
-            Swal.fire('Error', e.message || 'Error calculando', 'error');
+            Swal.fire('Error', 'No se pudo generar el plan de pagos.', 'error');
         }
     };
 
     const save = async () => {
-        if (!preview) {
-            Swal.fire('Atención', 'Primero debe calcular el plan de pagos.', 'warning');
-            return;
-        }
-        if (!form.id_cliente) {
-            Swal.fire('Atención', 'Seleccione un cliente.', 'warning');
-            return;
-        }
-
         try {
             await api.post(endpoints.credits.base, form);
-            await Swal.fire({ icon: 'success', title: 'Crédito creado', timer: 1500, showConfirmButton: false });
-            closeModal();
-            await loadData();
+            await Swal.fire('Éxito', 'Crédito otorgado correctamente', 'success');
+            setIsOpen(false);
+            loadData();
         } catch (e) {
-            Swal.fire('Error', e.message || 'No se pudo guardar', 'error');
+            Swal.fire('Error', 'No se pudo guardar el crédito.', 'error');
         }
     };
 
-    // --- Details Modal Logic ---
-    const openDetails = (credit) => {
-        setSelectedCreditDetails(credit);
-        setIsDetailsOpen(true);
+    const openDetails = async (credit) => {
+        try {
+            const response = await api.get(`${endpoints.credits.base}${credit.id_credito}`);
+            setSelectedCreditDetails(response || credit);
+            setIsDetailsOpen(true);
+        } catch (e) {
+            setSelectedCreditDetails(credit);
+            setIsDetailsOpen(true);
+            console.error("Error al obtener detalles extendidos:", e);
+        }
     };
 
     const closeDetails = () => {
@@ -170,37 +127,9 @@ function CreditManagement() {
         setSelectedCreditDetails(null);
     };
 
-    // --- Annulment Logic ---
-    const cancelCredit = async (credit) => {
-        const result = await Swal.fire({
-            title: '¿Anular Crédito?',
-            text: `Se anulará el crédito #${credit.id_credito}. Esto revertirá la contabilidad. No se puede deshacer.`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, anular',
-            cancelButtonText: 'Cancelar'
-        });
 
-        if (result.isConfirmed) {
-            try {
-                await api.post(`${endpoints.credits.base}${credit.id_credito}/anular`);
-                await Swal.fire('Anulado', 'El crédito ha sido anulado.', 'success');
-                await loadData();
-            } catch (e) {
-                Swal.fire('Error', e.message || 'No se pudo anular', 'error');
-            }
-        }
-    };
 
-    // --- Payment Logic ---
     const openPayment = (cuota) => {
-        // If viewing details modal, close it first or handle stacking. 
-        // For simplicity, we can close details or keep it open. 
-        // Let's keep detail open if modal supports stacking, but react-modal might need config.
-        // Assuming we pay from the Detail Modal.
-
         setSelectedCuota(cuota);
         const saldo = parseFloat(cuota.monto_cuota) - parseFloat(cuota.monto_pagado || 0);
         setPaymentForm({
@@ -212,29 +141,7 @@ function CreditManagement() {
         setIsPaymentOpen(true);
     };
 
-    const closePaymentModal = () => {
-        setIsPaymentOpen(false);
-        setSelectedCuota(null);
-        // Refresh data to update the background modal (Details)
-        loadData().then(() => {
-            // Need to update selectedCreditDetails with fresh data
-            if (selectedCreditDetails) {
-                // Find the updated credit in the fresh list - tricky because state update is async
-                // We rely on main `creditos` update, but `selectedCreditDetails` is a snapshot.
-                // We will update it in useEffect or manually here.
-                // A simpler way: just close payment, parent re-renders.
-                // But selectedCreditDetails is local state copy.
-            }
-        });
-    };
-
-    // Update selected details when creditos change
-    useEffect(() => {
-        if (selectedCreditDetails) {
-            const updated = creditos.find(c => c.id_credito === selectedCreditDetails.id_credito);
-            if (updated) setSelectedCreditDetails(updated);
-        }
-    }, [creditos]);
+    const closePaymentModal = () => { setIsPaymentOpen(false); setSelectedCuota(null); loadData(); };
 
     const onPaymentChange = (e) => {
         const { name, value } = e.target;
@@ -247,231 +154,161 @@ function CreditManagement() {
             await api.post(endpoints.payments, paymentForm);
             await Swal.fire({ icon: 'success', title: 'Pago registrado', timer: 1500, showConfirmButton: false });
             closePaymentModal();
-            // loadData triggered in closePaymentModal's logic via await above or separate call
-            await loadData();
+            // Si el modal de detalles está abierto, actualizarlo
+            if (isDetailsOpen && selectedCreditDetails) {
+                openDetails(selectedCreditDetails);
+            }
         } catch (e) {
-            Swal.fire('Error', e.message || 'No se pudo registrar el pago', 'error');
+            Swal.fire('Error', e.message || 'Error al pagar', 'error');
         }
     };
 
     return (
-        <div className="user-mgmt">
-            <div className="um-header">
-                <h2>Gestión de Créditos</h2>
-                <div className="um-actions">
-                    <button className="btn btn-accent" onClick={openCreate}>+ Nuevo Crédito</button>
+        <div className="p-4 md:p-8 min-h-screen bg-slate-100 font-sans">
+
+            {/* Cabecera */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                <div>
+                    <h2 className="text-2xl md:text-3xl font-black text-slate-900 m-0">Gestión de Créditos</h2>
+                    <p className="text-slate-500 mt-1 font-medium">Administre los préstamos de sus clientes</p>
                 </div>
+                <button
+                    onClick={openCreate}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold cursor-pointer flex items-center gap-2.5 shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-colors w-full md:w-auto justify-center"
+                >
+                    <svg width="20" height="20" style={{ width: '20px', height: '20px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    NUEVO CRÉDITO
+                </button>
             </div>
 
-            <div className="um-card">
-                {loading ? (
-                    <p className="muted">Cargando créditos...</p>
-                ) : creditos.length === 0 ? (
-                    <p className="muted">No hay créditos registrados.</p>
-                ) : (
-                    <div className="table-responsive">
-                        <table className="role-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Cliente</th>
-                                    <th>Monto</th>
-                                    <th>Total a Pagar</th>
-                                    <th>Cuotas</th>
-                                    <th>Fecha</th>
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {creditos.map(c => (
-                                    <tr key={c.id_credito}>
-                                        <td>{c.id_credito}</td>
-                                        <td>{c.cliente_nombre}</td>
-                                        <td>{c.monto_solicitado.toLocaleString()}</td>
-                                        <td>{c.monto_total_a_pagar.toLocaleString()}</td>
-                                        <td>{c.cantidad_cuotas}</td>
-                                        <td>{c.fecha_desembolso}</td>
-                                        <td>
-                                            <span className={`badge ${c.estado === 'PAGADO' ? 'badge-green' : c.estado === 'ANULADO' ? 'badge-red' : 'badge-yellow'}`}>
-                                                {c.estado}
-                                            </span>
-                                        </td>
-                                        <td style={{ display: 'flex', gap: '5px' }}>
-                                            <button
-                                                className="btn btn-sm btn-secondary"
-                                                onClick={() => openDetails(c)}
-                                            >
-                                                Detalle
-                                            </button>
-
-                                            {c.estado !== 'ANULADO' && c.estado !== 'PAGADO' && (
-                                                <button
-                                                    className="btn btn-sm btn-danger"
-                                                    style={{ background: '#ef4444', color: 'white', border: 'none' }}
-                                                    onClick={() => cancelCredit(c)}
-                                                >
-                                                    Anular
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+            {/* Tabla Principal */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead className="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider">
+                        <tr>
+                            <th className="p-5">ID</th>
+                            <th className="p-5">Cliente</th>
+                            <th className="p-5">Monto Solicitado</th>
+                            <th className="p-5 text-center">Estado</th>
+                            <th className="p-5 text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody className="text-sm text-slate-800 font-medium">
+                        {creditos.map(c => (
+                            <tr key={c.id_credito} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                                <td className="p-5 font-black text-blue-600">#{c.id_credito}</td>
+                                <td className="p-5 font-semibold">{c.cliente_nombre}</td>
+                                <td className="p-5 font-bold">{Number(c.monto_solicitado).toLocaleString('es-PY')} Gs.</td>
+                                <td className="p-5 text-center">
+                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-black
+                                        ${c.estado === 'PAGADO' ? 'bg-emerald-100 text-emerald-800' :
+                                            c.estado === 'PENDIENTE' ? 'bg-amber-100 text-amber-800' :
+                                                'bg-slate-100 text-slate-600'}`}>
+                                        {c.estado}
+                                    </span>
+                                </td>
+                                <td className="p-5 text-center">
+                                    <button onClick={() => openDetails(c)} className="bg-slate-100 text-blue-600 p-2 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer border-none">
+                                        <svg width="18" height="18" style={{ width: '18px', height: '18px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
 
-            {/* Modal Create Credit Redesigned */}
+            {/* MODAL CREAR */}
             {isOpen && (
-                <div className="dc-overlay">
-                    <div className="dc-modal" style={{ maxWidth: '900px', width: '95%' }}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">Nuevo Crédito</h3>
-                            <button className="close-btn" onClick={closeModal} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(8px)' }}>
+                    <div className="bg-white w-[95%] max-w-[950px] rounded-[2rem] overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
+                        <div className="p-6 md:px-10 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h3 className="m-0 font-black text-slate-900 tracking-tight text-lg">NUEVO PRÉSTAMO</h3>
+                            <button onClick={() => setIsOpen(false)} className="bg-slate-100 border-none text-xl w-9 h-9 rounded-full text-slate-500 hover:bg-slate-200 cursor-pointer flex items-center justify-center transition-colors">&times;</button>
                         </div>
 
-                        <div className="credit-form-container" style={{ display: 'flex', gap: '30px', padding: '20px' }}>
-                            {/* Left Column: Client Selection */}
-                            <div style={{ flex: 1, minWidth: '300px' }}>
-                                <h4 style={{ marginBottom: '15px', color: '#334155' }}>1. Seleccionar Cliente</h4>
-
+                        <div className="p-6 md:p-10 flex flex-col md:flex-row gap-8 overflow-y-auto">
+                            {/* PASO 1: CLIENTE */}
+                            <div className="flex-1">
+                                <label className="text-xs font-black text-blue-600 block mb-4 uppercase tracking-widest">1. Seleccionar Cliente</label>
                                 {!selectedClientObj ? (
-                                    <div className="form-row client-search" style={{ position: 'relative' }}>
-                                        <label>Buscar por Nombre o Documento</label>
+                                    <div className="relative">
                                         <input
                                             type="text"
-                                            placeholder="Escribe para buscar..."
+                                            placeholder="Buscar por nombre o documento..."
                                             value={searchTerm}
                                             onChange={handleSearchChange}
-                                            onFocus={() => setShowSuggestions(true)}
-                                            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                                            className="w-full p-4 rounded-xl border-2 border-slate-200 outline-none font-medium text-slate-700 focus:border-blue-500 transition-colors"
                                         />
                                         {showSuggestions && searchTerm && (
-                                            <ul className="suggestions-list" style={{
-                                                position: 'absolute', top: '100%', left: 0, right: 0,
-                                                background: 'white', border: '1px solid #cbd5e1', borderRadius: '6px',
-                                                maxHeight: '200px', overflowY: 'auto', listStyle: 'none', padding: 0, margin: 0, zIndex: 100,
-                                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                                            }}>
-                                                {filteredClients.length > 0 ? (
-                                                    filteredClients.map(c => (
-                                                        <li
-                                                            key={c.id_cliente}
-                                                            onClick={() => selectClient(c)}
-                                                            style={{ padding: '10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', hover: { background: '#f8fafc' } }}
-                                                        >
-                                                            <strong>{c.nombre} {c.apellido}</strong> <br />
-                                                            <small className="muted">Doc: {c.documento}</small>
-                                                        </li>
-                                                    ))
-                                                ) : (
-                                                    <li style={{ padding: '10px', color: '#94a3b8' }}>No se encontraron resultados.</li>
-                                                )}
-                                            </ul>
+                                            <div className="absolute w-full bg-white border border-slate-200 rounded-xl mt-2 shadow-xl z-10 max-h-[200px] overflow-y-auto">
+                                                {filteredClients.map(cl => (
+                                                    <div key={cl.id_cliente} onClick={() => selectClient(cl)} className="p-3 md:p-4 cursor-pointer border-b border-slate-50 text-sm font-semibold hover:bg-slate-50 transition-colors text-slate-700">
+                                                        {cl.nombre} {cl.apellido} <br />
+                                                        <small className="text-slate-400">Doc: {cl.documento}</small>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="selected-client-card" style={{
-                                        background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '15px',
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                    }}>
+                                    <div className="bg-blue-600 text-white p-5 rounded-xl flex justify-between items-center shadow-lg shadow-blue-200">
                                         <div>
-                                            <h5 style={{ margin: 0, color: '#1e40af' }}>{selectedClientObj.nombre} {selectedClientObj.apellido}</h5>
-                                            <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9em' }}>Doc: {selectedClientObj.documento}</p>
+                                            <p className="m-0 font-bold block">{selectedClientObj.nombre} {selectedClientObj.apellido}</p>
+                                            <p className="m-0 text-xs opacity-80">{selectedClientObj.documento}</p>
                                         </div>
-                                        <button onClick={clearClient} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1.2rem', cursor: 'pointer', padding: '5px' }}>
-                                            &times;
-                                        </button>
+                                        <button onClick={() => setSelectedClientObj(null)} className="bg-white/20 border-none text-white cursor-pointer rounded-lg p-1 hover:bg-white/30 transition-colors">&times;</button>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Right Column: Credit Details */}
-                            <div style={{ flex: 2 }}>
-                                <h4 style={{ marginBottom: '15px', color: '#334155' }}>2. Detalles del Préstamo</h4>
-                                <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                                    <div className="form-row">
-                                        <label>Tasa de Interés *</label>
-                                        <select name="id_tasa" value={form.id_tasa} onChange={onChange} className="form-select" style={{ width: '100%', padding: '10px' }}>
-                                            <option value="">-- Seleccione --</option>
+                            {/* PASO 2: DATOS Y TASA */}
+                            <div className="flex-[1.5]">
+                                <label className="text-xs font-black text-blue-600 block mb-4 uppercase tracking-widest">2. Configuración del Crédito</label>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs font-bold text-slate-500 block mb-2">Elegir Tasa de Interés</label>
+                                        <select
+                                            value={form.id_tasa}
+                                            onChange={(e) => setForm({ ...form, id_tasa: e.target.value })}
+                                            className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors cursor-pointer bg-white"
+                                        >
+                                            <option value="">-- Seleccionar Tasa --</option>
                                             {tasas.map(t => (
-                                                <option key={t.id_tasa} value={t.id_tasa}>
-                                                    {t.nombre_tasa} ({t.porcentaje}%)
-                                                </option>
+                                                <option key={t.id_tasa} value={t.id_tasa}>{t.nombre_tasa} ({t.porcentaje}%)</option>
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="form-row">
-                                        <label>Monto Solicitado *</label>
-                                        <input
-                                            name="monto"
-                                            type="number"
-                                            value={form.monto}
-                                            onChange={onChange}
-                                            placeholder="0.00"
-                                            style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }}
-                                        />
+
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 block mb-2">Monto a Prestar</label>
+                                        <input type="number" placeholder="0.00" value={form.monto} onChange={(e) => setForm({ ...form, monto: e.target.value })} className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-extrabold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
                                     </div>
-                                    <div className="form-row">
-                                        <label>Cantidad Cuotas *</label>
-                                        <input
-                                            name="cuotas"
-                                            type="number"
-                                            value={form.cuotas}
-                                            onChange={onChange}
-                                            placeholder="Ej. 6"
-                                            style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                    <div className="form-row">
-                                        <label>Inicio de Pagos (Opcional)</label>
-                                        <input
-                                            name="fecha_primer_pago"
-                                            type="date"
-                                            value={form.fecha_primer_pago}
-                                            onChange={onChange}
-                                            style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }}
-                                        />
-                                        <small className="muted" style={{ display: 'block', marginTop: '5px', fontSize: '0.8em' }}>
-                                            Por defecto: en 7 días.
-                                        </small>
+
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 block mb-2">Cuotas</label>
+                                        <input type="number" placeholder="Ej: 12" value={form.cuotas} onChange={(e) => setForm({ ...form, cuotas: e.target.value })} className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-extrabold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
                                     </div>
                                 </div>
 
-                                <div style={{ textAlign: 'right', marginTop: '20px' }}>
-                                    <button type="button" className="btn btn-accent" onClick={calculate}>
-                                        Calcular Plan
-                                    </button>
-                                </div>
+                                <button onClick={calculate} className="w-full mt-6 p-4 bg-slate-900 text-white rounded-xl border-none font-bold cursor-pointer uppercase text-xs tracking-widest hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200">
+                                    Calcular Plan de Pagos
+                                </button>
 
                                 {preview && (
-                                    <div className="preview-section" style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', marginTop: '20px', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                            <h4 style={{ margin: 0 }}>Resumen del Plan</h4>
-                                            <span style={{ fontWeight: 'bold', color: '#0f172a' }}>Total: {preview.monto_total}</span>
+                                    <div className="mt-6 bg-emerald-50 p-5 rounded-2xl border-2 border-emerald-200">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="text-xs font-black text-emerald-700">TOTAL A DEVOLVER:</span>
+                                            <span className="text-xl font-black text-emerald-800">{Number(preview.monto_total).toLocaleString()} Gs.</span>
                                         </div>
-
-                                        <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                            <table className="role-table" style={{ fontSize: '0.85em', width: '100%' }}>
-                                                <thead>
-                                                    <tr>
-                                                        <th>#</th>
-                                                        <th>Vencimiento</th>
-                                                        <th>Cuota</th>
-                                                        <th>Capital</th>
-                                                        <th>Interés</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
+                                        <div className="max-h-[150px] overflow-y-auto bg-white rounded-xl border border-emerald-100">
+                                            <table className="w-full text-xs">
+                                                <tbody className="font-semibold text-slate-600">
                                                     {preview.plan.map(p => (
-                                                        <tr key={p.numero_cuota}>
-                                                            <td>{p.numero_cuota}</td>
-                                                            <td>{p.fecha_vencimiento}</td>
-                                                            <td style={{ fontWeight: 'bold' }}>{p.cuota_total}</td>
-                                                            <td className="muted">{p.capital_cuota}</td>
-                                                            <td className="muted">{p.interes_cuota}</td>
+                                                        <tr key={p.numero_cuota} className="border-b border-emerald-50">
+                                                            <td className="p-2">Cuota {p.numero_cuota}</td>
+                                                            <td className="p-2 text-right">{Number(p.cuota_total).toLocaleString()} Gs.</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -482,97 +319,134 @@ function CreditManagement() {
                             </div>
                         </div>
 
-                        <div className="modal-footer" style={{ padding: '20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                            <button type="button" className="btn btn-secondary" onClick={closeModal} style={{ marginRight: '10px' }}>
-                                Cancelar
-                            </button>
-                            <button type="button" className="btn btn-primary" onClick={save} disabled={!preview || !form.id_cliente}>
-                                Confirmar y Crear Crédito
+                        <div className="p-6 md:px-10 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-4">
+                            <button onClick={() => setIsOpen(false)} className="px-6 py-3 bg-transparent border-none font-bold text-slate-500 hover:text-slate-700 cursor-pointer transition-colors">DESCARTAR</button>
+                            <button onClick={save} disabled={!preview} className={`px-8 py-3 rounded-xl border-none font-bold cursor-pointer text-white shadow-lg transition-all
+                                ${preview ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-slate-300 cursor-not-allowed'}`}>
+                                GUARDAR CRÉDITO
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* DETAILS MODAL */}
+            {/* MODAL DETALLES */}
             {isDetailsOpen && selectedCreditDetails && (
-                <div className="dc-overlay">
-                    <div className="dc-modal" style={{ maxWidth: '900px', width: '95%' }}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">
-                                Detalle de Crédito #{selectedCreditDetails.id_credito} - {selectedCreditDetails.cliente_nombre}
-                            </h3>
-                            <button className="close-btn" onClick={closeDetails} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(4px)' }}>
+                    <div className="bg-white w-full max-w-[900px] rounded-[1.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] mx-4">
+
+                        {/* Cabecera del Detalle */}
+                        <div className="p-6 md:p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div>
+                                <h3 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tight m-0">
+                                    Expediente #{selectedCreditDetails.id_credito}
+                                </h3>
+                                <p className="text-sm text-slate-500 font-bold mt-1">Cliente: {selectedCreditDetails.cliente_nombre}</p>
+                            </div>
+                            <button onClick={closeDetails} className="text-slate-400 bg-transparent border-none text-3xl leading-none cursor-pointer hover:text-slate-600 transition-colors">&times;</button>
                         </div>
-                        <div style={{ padding: '20px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', background: '#f1f5f9', padding: '10px', borderRadius: '6px' }}>
-                                <div><strong>Monto Original:</strong> {selectedCreditDetails.monto_solicitado.toLocaleString()}</div>
-                                <div><strong>Total a Pagar:</strong> {selectedCreditDetails.monto_total_a_pagar.toLocaleString()}</div>
-                                <div><strong>Cuotas:</strong> {selectedCreditDetails.cantidad_cuotas}</div>
-                                <div>
-                                    <span className={`badge ${selectedCreditDetails.estado === 'PAGADO' ? 'badge-green' : selectedCreditDetails.estado === 'ANULADO' ? 'badge-red' : 'badge-yellow'}`}>
+
+                        <div className="p-6 md:p-8 overflow-y-auto">
+                            {/* Resumen de Valores */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+                                <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
+                                    <p className="text-[0.65rem] uppercase font-black text-indigo-500 tracking-wider mb-2">Capital Prestado</p>
+                                    <p className="text-xl font-black text-indigo-900">{Number(selectedCreditDetails.monto_solicitado).toLocaleString()} Gs.</p>
+                                </div>
+                                <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                                    <p className="text-[0.65rem] uppercase font-black text-emerald-500 tracking-wider mb-2">Total con Interés</p>
+                                    <p className="text-xl font-black text-emerald-900">{Number(selectedCreditDetails.monto_total_a_pagar).toLocaleString()} Gs.</p>
+                                </div>
+                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                    <p className="text-[0.65rem] uppercase font-black text-slate-500 tracking-wider mb-2">Cuotas</p>
+                                    <p className="text-xl font-black text-slate-900">{selectedCreditDetails.cantidad_cuotas}</p>
+                                </div>
+                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                    <p className="text-[0.65rem] uppercase font-black text-slate-500 tracking-wider mb-2">Estado</p>
+                                    <span className={`inline-block px-3 py-1 rounded-full text-[0.65rem] font-black uppercase
+                                        ${selectedCreditDetails.estado === 'PAGADO' ? 'bg-emerald-200 text-emerald-800' : 'bg-amber-200 text-amber-800'}`}>
                                         {selectedCreditDetails.estado}
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="table-responsive" style={{ maxHeight: '50vh', overflowY: 'auto' }}>
-                                <table className="role-table">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Vencimiento</th>
-                                            <th>Monto Cuota</th>
-                                            <th>Monto Pagado</th>
-                                            <th>Estado</th>
-                                            <th>Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {selectedCreditDetails.detalles.map(d => (
-                                            <tr key={d.id_detalle}>
-                                                <td>{d.numero_cuota}</td>
-                                                <td>{d.fecha_vencimiento}</td>
-                                                <td>{d.monto_cuota.toLocaleString()}</td>
-                                                <td>{d.monto_pagado.toLocaleString()}</td>
-                                                <td>
-                                                    <span className={`badge ${d.estado_cuota === 'PAGADO' ? 'badge-green' : 'badge-yellow'}`}>
-                                                        {d.estado_cuota}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    {d.estado_cuota !== 'PAGADO' && selectedCreditDetails.estado !== 'ANULADO' && (
-                                                        <button
-                                                            className="btn btn-xs btn-primary"
-                                                            onClick={() => openPayment(d)}
-                                                        >
-                                                            Pagar
-                                                        </button>
-                                                    )}
-                                                </td>
+                            {/* Tabla de Cuotas (Detalles) */}
+                            <div>
+                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Plan de Amortización</h4>
+                                <div className="border border-slate-200 rounded-2xl overflow-hidden overflow-x-auto">
+                                    <table className="w-full text-sm border-collapse text-left min-w-[600px]">
+                                        <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[0.7rem]">
+                                            <tr>
+                                                <th className="p-3 md:p-4">Nro</th>
+                                                <th className="p-3 md:p-4">Vencimiento</th>
+                                                <th className="p-3 md:p-4 text-right">Monto Cuota</th>
+                                                <th className="p-3 md:p-4 text-right">Monto Pagado</th>
+                                                <th className="p-3 md:p-4 text-center">Acción</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="font-medium">
+                                            {selectedCreditDetails.detalles && selectedCreditDetails.detalles.length > 0 ? (
+                                                selectedCreditDetails.detalles.map(d => (
+                                                    <tr key={d.id_detalle} className="border-t border-slate-100 bg-white hover:bg-slate-50/50">
+                                                        <td className="p-4 font-bold text-slate-400">#{d.numero_cuota}</td>
+                                                        <td className="p-4 text-slate-600">{d.fecha_vencimiento}</td>
+                                                        <td className="p-4 text-right font-black text-slate-700">{Number(d.monto_cuota).toLocaleString()}</td>
+                                                        <td className="p-4 text-right font-bold text-emerald-600">
+                                                            {d.monto_pagado > 0 ? Number(d.monto_pagado).toLocaleString() : '-'}
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            {d.estado_cuota !== 'PAGADO' && selectedCreditDetails.estado !== 'ANULADO' ? (
+                                                                <button
+                                                                    onClick={() => openPayment(d)}
+                                                                    className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-[0.7rem] font-black uppercase border-none cursor-pointer shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition-colors"
+                                                                >
+                                                                    Pagar
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[0.7rem] font-black text-emerald-500 uppercase">Completado</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="5" className="p-10 text-center text-slate-400 italic">
+                                                        No hay cuotas registradas para este crédito.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={closeDetails}>Cerrar</button>
+
+                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                            <button
+                                onClick={closeDetails}
+                                className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-500 cursor-pointer shadow-sm hover:text-slate-800 transition-colors"
+                            >
+                                Cerrar Ventana
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Modal Payment */}
+            {/* MODAL PAGO */}
             {isPaymentOpen && selectedCuota && (
-                <div className="dc-overlay" style={{ zIndex: 2000 }}>
-                    <div className="dc-modal">
-                        <div className="modal-header">
-                            <h3 className="modal-title">Registrar Pago - Cuota #{selectedCuota.numero_cuota}</h3>
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, backdropFilter: 'blur(8px)' }}>
+                    <div className="bg-white w-full max-w-[450px] rounded-[2rem] shadow-2xl overflow-hidden border border-slate-100 mx-4">
+                        <div className="p-8 md:p-10 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white text-center relative">
+                            <h3 className="text-2xl font-black uppercase tracking-tight m-0">Registrar Pago</h3>
+                            <p className="text-indigo-100 text-xs font-bold mt-1">CUOTA NRO #{selectedCuota.numero_cuota}</p>
+                            <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-white text-indigo-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-4 border-white">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                            </div>
                         </div>
-                        <form onSubmit={savePayment} className="user-form">
-                            <div className="form-row">
-                                <label>Monto a Pagar *</label>
+                        <form onSubmit={savePayment} className="p-8 md:p-10 pt-12 flex flex-col gap-6 bg-white">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Monto Pagado</label>
                                 <input
                                     name="monto_pagado"
                                     type="number"
@@ -580,38 +454,47 @@ function CreditManagement() {
                                     value={paymentForm.monto_pagado}
                                     onChange={onPaymentChange}
                                     required
+                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-black text-2xl text-slate-700 text-center focus:border-indigo-500 transition-colors"
                                 />
                             </div>
-                            <div className="form-row">
-                                <label>Forma de Pago *</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pago</label>
                                 <select
                                     name="id_forma_pago"
                                     value={paymentForm.id_forma_pago}
                                     onChange={onPaymentChange}
                                     required
-                                    className="form-select"
+                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-slate-600 appearance-none cursor-pointer focus:border-indigo-500 transition-colors"
                                 >
-                                    <option value="">-- Seleccione --</option>
-                                    {formasPago.map(f => (
-                                        <option key={f.id_forma_pago} value={f.id_forma_pago}>
-                                            {f.nombre}
-                                        </option>
-                                    ))}
+                                    <option value="">Seleccione...</option>
+                                    {formasPago.map(f => (<option key={f.id_forma_pago} value={f.id_forma_pago}>{f.nombre}</option>))}
                                 </select>
                             </div>
-                            <div className="form-row">
-                                <label>Nro Comprobante</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Nro Comprobante</label>
                                 <input
                                     name="comprobante_nro"
                                     type="text"
+                                    placeholder="Ej: 001-002-12345"
                                     value={paymentForm.comprobante_nro}
                                     onChange={onPaymentChange}
-                                    placeholder="Opcional"
+                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-semibold text-slate-600 focus:border-indigo-500 transition-colors"
                                 />
                             </div>
-                            <div className="modal-footer">
-                                <button type="submit" className="btn btn-primary">Registrar Pago</button>
-                                <button type="button" className="btn btn-secondary" onClick={closePaymentModal}>Cancelar</button>
+                            <div className="pt-4 flex flex-col gap-3">
+                                <button
+                                    type="submit"
+                                    className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase tracking-wider text-xs shadow-lg shadow-emerald-600/20 border-none cursor-pointer hover:bg-emerald-700 transition-colors"
+                                >
+                                    Confirmar Pago
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={closePaymentModal}
+                                    className="w-full p-4 text-slate-400 font-bold border-none bg-transparent cursor-pointer hover:text-slate-600 transition-colors"
+                                >
+                                    Volver
+                                </button>
                             </div>
                         </form>
                     </div>

@@ -28,6 +28,8 @@ function App() {
   });
   const [loadingAuth, setLoadingAuth] = useState(true);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     const roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
@@ -47,6 +49,11 @@ function App() {
     }
     setLoadingAuth(false);
   }, []);
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location]);
 
   // Guard de sanidad en el cliente (si algo intenta empujar rutas rotas)
   useEffect(() => {
@@ -72,6 +79,10 @@ function App() {
     navigate('/login');
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
   if (loadingAuth) return <div>Cargando sesión...</div>;
 
   return (
@@ -84,13 +95,29 @@ function App() {
         path="/*"
         element={
           authInfo.isAuthenticated ? (
-            <div className="app-layout">
+            <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
+              {/* Mobile Sidebar Toggle Button */}
+              <button className="sidebar-toggle-button" onClick={toggleSidebar}>
+                <i className={`fas ${sidebarOpen ? 'fa-times' : 'fa-bars'}`}></i>
+              </button>
+
+              {/* Overlay for mobile when sidebar is open */}
+              {sidebarOpen && (
+                <div
+                  className="sidebar-overlay"
+                  onClick={() => setSidebarOpen(false)}
+                ></div>
+              )}
+
               <SidebarMenu
                 onLogout={handleLogout}
                 username={authInfo.username}
                 userRoles={authInfo.userRoles}
                 userPermissions={authInfo.userPermissions}
+                isOpen={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
               />
+
               <div className="main-content">
                 <Routes>
                   {/* Página de inicio neutra para TODOS los usuarios logueados */}

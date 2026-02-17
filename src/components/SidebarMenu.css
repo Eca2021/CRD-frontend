@@ -250,13 +250,45 @@
 }
 
 /* --- Responsive --- */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
+
+    /* Changed from 768px to match App.css */
     .sidebar {
         transform: translateX(-100%);
-        width: 100%;
+        width: 260px;
+        /* Fixed width even on mobile */
+        transition: transform 0.3s ease;
     }
 
     .sidebar.mobile-open {
         transform: translateX(0);
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
     }
+
+    /* Close button visible only on mobile inside sidebar */
+    .sidebar-close-button {
+        display: flex;
+    }
+}
+
+/* Close button style */
+.sidebar-close-button {
+    display: none;
+    /* Hidden on desktop */
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    /* Red color */
+    font-size: 1.2rem;
+    cursor: pointer;
+    z-index: 1002;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.sidebar-close-button:hover {
+    background: rgba(255, 255, 255, 0.1);
 }

@@ -312,7 +312,7 @@ export default function RoleManagement({ token }) {
                         {Array.isArray(r.permisos) && r.permisos.length > 0 ? (
                           r.permisos.map((p) => (
                             <span key={p.id_permiso} className="badge badge-gray" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
-                              {p.nombre_permiso}
+                              {String(p.nombre_permiso || 'Permiso')}
                             </span>
                           ))
                         ) : (

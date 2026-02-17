@@ -184,7 +184,7 @@ function ClientManagement() {
                     <p className="muted">No hay clientes encontrados.</p>
                 ) : (
                     <div className="table-responsive">
-                        <table className="role-table">
+                        <table className="role-table table"> {/* Added 'table' class */}
                             <thead>
                                 <tr>
                                     <th>Documento</th>
@@ -198,17 +198,19 @@ function ClientManagement() {
                             <tbody>
                                 {filtered.map(c => (
                                     <tr key={c.id_cliente}>
-                                        <td>{c.documento}</td>
-                                        <td>{c.apellido}</td>
-                                        <td>{c.nombre}</td>
-                                        <td>{c.telefono}</td>
-                                        <td>{c.direccion}</td>
-                                        <td>
-                                            <button className="btn btn-secondary btn-sm" onClick={() => openCredits(c)} title="Ver Créditos">
-                                                <i className="fas fa-money-bill-wave"></i> Créditos
-                                            </button>
-                                            <button className="btn btn-accent btn-sm" onClick={() => openEdit(c)}>Editar</button>
-                                            <button className="btn btn-danger btn-sm" onClick={() => remove(c.id_cliente)}>Eliminar</button>
+                                        <td data-label="Documento">{String(c.documento || '')}</td>
+                                        <td data-label="Apellido">{String(c.apellido || '')}</td>
+                                        <td data-label="Nombre">{String(c.nombre || '')}</td>
+                                        <td data-label="Teléfono">{String(c.telefono || '')}</td>
+                                        <td data-label="Dirección">{String(c.direccion || '')}</td>
+                                        <td data-label="Acciones">
+                                            <div className="actions">
+                                                <button className="btn btn-secondary btn-sm" onClick={() => openCredits(c)} title="Ver Créditos">
+                                                    <i className="fas fa-money-bill-wave"></i> Créditos
+                                                </button>
+                                                <button className="btn btn-accent btn-sm" onClick={() => openEdit(c)}>Editar</button>
+                                                <button className="btn btn-danger btn-sm" onClick={() => remove(c.id_cliente)}>Eliminar</button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -278,7 +280,7 @@ function ClientManagement() {
                                 <p>Este cliente no tiene créditos registrados.</p>
                             ) : (
                                 <div className="table-responsive">
-                                    <table className="role-table">
+                                    <table className="role-table table"> {/* Added 'table' class */}
                                         <thead>
                                             <tr>
                                                 <th>ID</th>
@@ -295,18 +297,18 @@ function ClientManagement() {
                                             {clientCredits.map(c => (
                                                 <React.Fragment key={c.id_credito}>
                                                     <tr>
-                                                        <td>{c.id_credito}</td>
-                                                        <td>{c.monto_solicitado.toLocaleString()}</td>
-                                                        <td>{c.tasa_nombre}</td>
-                                                        <td>{c.monto_total_a_pagar.toLocaleString()}</td>
-                                                        <td>{c.cantidad_cuotas}</td>
-                                                        <td>{c.fecha_desembolso}</td>
-                                                        <td>
+                                                        <td data-label="ID">{c.id_credito}</td>
+                                                        <td data-label="Monto Solicitado">{c.monto_solicitado.toLocaleString()}</td>
+                                                        <td data-label="Tasa">{c.tasa_nombre}</td>
+                                                        <td data-label="Monto Total">{c.monto_total_a_pagar.toLocaleString()}</td>
+                                                        <td data-label="Cuotas">{c.cantidad_cuotas}</td>
+                                                        <td data-label="Fecha">{c.fecha_desembolso}</td>
+                                                        <td data-label="Estado">
                                                             <span className={`badge ${c.estado === 'PAGADO' ? 'badge-green' : 'badge-yellow'}`}>
                                                                 {c.estado}
                                                             </span>
                                                         </td>
-                                                        <td>
+                                                        <td data-label="Acciones">
                                                             <button
                                                                 className="btn btn-sm btn-secondary"
                                                                 onClick={() => toggleCreditDetails(c.id_credito)}
@@ -319,7 +321,7 @@ function ClientManagement() {
                                                         <tr>
                                                             <td colSpan="8" style={{ background: '#f8fafc', padding: '10px' }}>
                                                                 <h5>Detalle de Cuotas</h5>
-                                                                <table className="role-table" style={{ fontSize: '0.9em' }}>
+                                                                <table className="role-table table" style={{ fontSize: '0.9em' }}> {/* Added 'table' class */}
                                                                     <thead>
                                                                         <tr>
                                                                             <th>#</th>
@@ -332,11 +334,11 @@ function ClientManagement() {
                                                                     <tbody>
                                                                         {c.detalles.map(d => (
                                                                             <tr key={d.id_detalle}>
-                                                                                <td>{d.numero_cuota}</td>
-                                                                                <td>{d.fecha_vencimiento}</td>
-                                                                                <td>{d.monto_cuota.toLocaleString()}</td>
-                                                                                <td>{d.monto_pagado.toLocaleString()}</td>
-                                                                                <td>
+                                                                                <td data-label="#">{d.numero_cuota}</td>
+                                                                                <td data-label="Vencimiento">{d.fecha_vencimiento}</td>
+                                                                                <td data-label="Monto Cuota">{d.monto_cuota.toLocaleString()}</td>
+                                                                                <td data-label="Monto Pagado">{d.monto_pagado.toLocaleString()}</td>
+                                                                                <td data-label="Estado">
                                                                                     <span className={`badge ${d.estado_cuota === 'PAGADO' ? 'badge-green' : 'badge-yellow'}`}>
                                                                                         {d.estado_cuota}
                                                                                     </span>
@@ -354,6 +356,7 @@ function ClientManagement() {
                                     </table>
                                 </div>
                             )}
+
                         </div>
 
                         <div className="modal-footer">

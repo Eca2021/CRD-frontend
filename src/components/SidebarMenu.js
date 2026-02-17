@@ -11,7 +11,9 @@ function SidebarMenu({
   onLogout,
   userId,
   apiBaseUrl = '/api',
-  authToken
+  authToken,
+  isOpen, // Prop for mobile visibility
+  onClose // Prop to close sidebar
 }) {
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ function SidebarMenu({
 
   const handleMenuItemClick = (path) => {
     navigate(path);
+    if (onClose) onClose(); // Close sidebar on mobile when item clicked
   };
 
   const handleLogout = (e) => {
@@ -40,20 +43,33 @@ function SidebarMenu({
       if (result.isConfirmed) {
         onLogout();
         navigate('/login');
+        if (onClose) onClose();
       }
     });
   };
 
-  const hasRole = (role) => (userRoles || []).some(r => r.toUpperCase() === role.toUpperCase());
+  const hasRole = (role) => (userRoles || []).some(r => {
+    const rName = typeof r === 'string' ? r : (r.nombre || r.name || '');
+    return rName.toUpperCase() === role.toUpperCase();
+  });
 
   const isActive = (path) => location.pathname === path;
 
+  // Derive display role safely
+  const firstRole = userRoles?.[0];
+  const displayRole = String(typeof firstRole === 'string' ? firstRole : (firstRole?.nombre || firstRole?.name || 'Rol'));
+
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
+      {/* Mobile Close Button */}
+      <button className="sidebar-close-button" onClick={onClose}>
+        <i className="fas fa-times"></i>
+      </button>
+
       {/* Brand/Logo Section */}
       <div className="sidebar-brand">
         <img src={menuIcon} alt="Logo" className="sidebar-logo-img" />
-        <h3 className="sidebar-brand-text">CrediFast</h3>
+        <h3 className="sidebar-brand-text">Sistema de Crédito</h3>
       </div>
 
       {/* Profile Section */}
@@ -61,9 +77,10 @@ function SidebarMenu({
         <div className="profile-avatar">
           <span>{username ? username.charAt(0).toUpperCase() : 'U'}</span>
         </div>
+
         <div className="profile-info">
           <h4 className="profile-name">{username || 'Usuario'}</h4>
-          <span className="profile-role">{userRoles?.[0] || 'Rol'}</span>
+          <span className="profile-role">{displayRole}</span>
         </div>
       </div>
 

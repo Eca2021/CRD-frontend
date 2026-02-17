@@ -271,7 +271,7 @@ function UserManagement() {
           <p className="muted">No hay usuarios.</p>
         ) : (
           <div className="table-responsive">
-            <table className="role-table">
+            <table className="role-table table"> {/* Added 'table' class for global styles */}
               <thead>
                 <tr>
                   <th>ID</th>
@@ -286,33 +286,43 @@ function UserManagement() {
               <tbody>
                 {filtered.map((user) => {
                   const inactive = String(user.estado || '').toUpperCase() !== 'ACTIVO';
+                  // DEBUG: Check for object rendering issues
+                  if (user.roles && user.roles.some(r => typeof r === 'object' && !r.nombre && !r.name)) {
+                    console.warn('Found user with malformed role:', user);
+                  }
                   return (
                     <tr key={user.id_usuario} className={inactive ? 'inactive-user-row' : ''}>
-                      <td>{user.id_usuario}</td>
-                      <td>{user.nombre_usuario}</td>
-                      <td>{user.nombre}</td>
-                      <td>{user.email}</td>
-                      <td>
+                      <td data-label="ID">{user.id_usuario}</td>
+                      <td data-label="Usuario">{user.nombre_usuario}</td>
+                      <td data-label="Nombre">{user.nombre}</td>
+                      <td data-label="Email">{user.email}</td>
+                      <td data-label="Estado">
                         <span className={`badge ${inactive ? 'badge-gray' : 'badge-green'}`}>
                           {user.estado || '-'}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Roles">
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                           {(user.roles || []).length > 0 ? (
-                            (user.roles || []).map(r => (
-                              <span key={r.id_rol} className="badge badge-gray" style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
-                                {r.nombre}
-                              </span>
-                            ))
+                            (user.roles || []).map((r, idx) => {
+                              const rName = String(typeof r === 'string' ? r : (r.nombre || r.name || 'Rol'));
+                              const rKey = (typeof r === 'object' && r.id_rol) ? r.id_rol : idx;
+                              return (
+                                <span key={rKey} className="badge badge-gray" style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
+                                  {rName}
+                                </span>
+                              );
+                            })
                           ) : (
                             <span className="muted" style={{ fontStyle: 'italic' }}>Sin roles</span>
                           )}
                         </div>
                       </td>
-                      <td>
-                        <button className="btn btn-accent btn-sm" onClick={() => openEdit(user)}>Editar</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => remove(user.id_usuario)}>Eliminar</button>
+                      <td data-label="Acciones">
+                        <div className="actions">
+                          <button className="btn btn-accent btn-sm" onClick={() => openEdit(user)}>Editar</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => remove(user.id_usuario)}>Eliminar</button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -321,6 +331,7 @@ function UserManagement() {
             </table>
           </div>
         )}
+
       </div>
 
       {/* ===== Modal CRUD usuario ===== */}

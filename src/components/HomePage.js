@@ -1,7 +1,10 @@
 import React from 'react';
 
 function HomePage({ username, userRoles }) {
-  const rolesText = (userRoles || []).join(', ');
+  const rolesText = (userRoles || [])
+    .map(r => String(typeof r === 'string' ? r : r.nombre || r.name || ''))
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <div style={{ padding: '1.5rem' }}>

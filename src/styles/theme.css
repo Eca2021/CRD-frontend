@@ -5,17 +5,22 @@
   --color-text: #1f2937;
   --color-muted: #6b7280;
 
-  --color-primary: #2563eb;   /* azul */
-  --color-success: #16a34a;   /* verde */
-  --color-danger: #dc2626;    /* rojo */
-  --color-warning: #f59e0b;   /* amarillo */
-  --color-info: #0ea5e9;      /* celeste */
+  --color-primary: #2563eb;
+  /* azul */
+  --color-success: #16a34a;
+  /* verde */
+  --color-danger: #dc2626;
+  /* rojo */
+  --color-warning: #f59e0b;
+  /* amarillo */
+  --color-info: #0ea5e9;
+  /* celeste */
 
   /* Borders & effects */
   --radius: 12px;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 10px rgba(0,0,0,0.08);
-  --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
 
   /* Spacing */
   --space-1: .25rem;
@@ -41,14 +46,17 @@
   --color-surface: #111827;
   --color-text: #e5e7eb;
   --color-muted: #94a3b8;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 10px rgba(0,0,0,0.45);
-  --shadow-lg: 0 10px 25px rgba(0,0,0,0.5);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
 }
+
 body {
   background: var(--color-bg);
   color: var(--color-text);
@@ -80,6 +88,7 @@ body {
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
+
 .table thead th {
   text-align: left;
   font-weight: 600;
@@ -88,10 +97,12 @@ body {
   background: #f3f4f6;
   padding: var(--space-3) var(--space-4);
 }
+
 .table tbody td {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid #eef2f7;
 }
+
 .table .actions {
   display: flex;
   gap: var(--space-2);
@@ -99,20 +110,85 @@ body {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .hide-sm { display: none !important; }
-  .table thead { display: none; }
-  .table, .table tbody, .table tr, .table td {
+@media (max-width: 992px) {
+
+  /* Matched breakpoint */
+  .hide-sm {
+    display: none !important;
+  }
+
+  /* --- RESPONSIVE TABLE (CARD VIEW) --- */
+  .table thead {
+    display: none;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
     display: block;
     width: 100%;
   }
-  .table tr { box-shadow: var(--shadow-sm); margin-bottom: var(--space-4); border-radius: var(--radius); }
-  .table tbody td { border: 0; padding: var(--space-3) var(--space-4); }
+
+  .table {
+    background: transparent;
+    /* Remove table background in card view */
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .table tr {
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--space-4);
+    border-radius: var(--radius);
+    border: 1px solid #eef2f7;
+    position: relative;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .table tbody td {
+    border: 0;
+    border-bottom: 1px solid #f1f5f9;
+    padding: var(--space-2) var(--space-4);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+  }
+
+  .table tbody td:last-child {
+    border-bottom: none;
+  }
+
+  /* Use data-label attribute for the pseudo-element */
   .table tbody td::before {
-    content: attr(data-th);
+    content: attr(data-label);
     display: block;
+    font-weight: 600;
     font-size: var(--fs-sm);
     color: var(--color-muted);
-    margin-bottom: 4px;
+    text-align: left;
+    margin-right: 15px;
+  }
+
+  /* Specific adjustment for Actions column/cell if it just contains buttons */
+  .table .actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  /* Make containers fluid */
+  .container {
+    padding-inline: var(--space-2);
+  }
+
+  /* Adjust modal width on mobile */
+  .dc-modal {
+    width: 95%;
+    margin: 10px;
+    max-height: 95vh;
   }
 }
