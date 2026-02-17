@@ -165,6 +165,32 @@ function CreditManagement() {
         }
     };
 
+    const anularCredito = async () => {
+        if (!selectedCreditDetails) return;
+
+        const result = await Swal.fire({
+            title: '¿Estás seguro?',
+            text: "Esta acción anulará el crédito y revertirá los movimientos contables. No se puede deshacer.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Sí, anular crédito',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await api.post(`${endpoints.credits.base}${selectedCreditDetails.id_credito}/anular`);
+                await Swal.fire('Anulado', 'El crédito ha sido anulado correctamente.', 'success');
+                closeDetails();
+                loadData();
+            } catch (e) {
+                Swal.fire('Error', e.message || 'No se pudo anular el crédito', 'error');
+            }
+        }
+    };
+
     return (
         <div className="p-4 md:p-8 min-h-screen bg-slate-100 font-sans">
 
@@ -433,7 +459,18 @@ function CreditManagement() {
                             </div>
                         </div>
 
-                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                            {selectedCreditDetails.estado !== 'ANULADO' && !selectedCreditDetails.detalles.some(d => parseFloat(d.monto_pagado) > 0) ? (
+                                <button
+                                    onClick={anularCredito}
+                                    className="px-6 py-3 bg-red-50 border border-red-100 rounded-xl text-xs font-black uppercase text-red-600 cursor-pointer shadow-sm hover:bg-red-100 transition-colors"
+                                >
+                                    Anular Crédito
+                                </button>
+                            ) : (
+                                <div></div> // Espaciador para mantener el justify-between si no hay botón
+                            )}
+
                             <button
                                 onClick={closeDetails}
                                 className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase text-slate-500 cursor-pointer shadow-sm hover:text-slate-800 transition-colors"
