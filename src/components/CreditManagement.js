@@ -287,8 +287,18 @@ function CreditManagement() {
                                     </div>
 
                                     <div>
-                                        <label className="text-xs font-bold text-slate-500 block mb-2">Cuotas</label>
+                                        <label className="text-xs font-bold text-slate-500 block mb-2">Cuotas (Semanal)</label>
                                         <input type="number" placeholder="Ej: 12" value={form.cuotas} onChange={(e) => setForm({ ...form, cuotas: e.target.value })} className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-extrabold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 block mb-2">Fecha 1er Vencimiento</label>
+                                        <input
+                                            type="date"
+                                            value={form.fecha_primer_pago}
+                                            onChange={(e) => setForm({ ...form, fecha_primer_pago: e.target.value })}
+                                            className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors"
+                                        />
                                     </div>
                                 </div>
 
