@@ -12,7 +12,8 @@ import RateManagement from './components/RateManagement';
 import CreditManagement from './components/CreditManagement';
 import Cashier from './components/Cashier';
 import AccountingModule from './components/AccountingModule';
-import HomePage from './components/HomePage';
+import AdminDashboard from './components/AdminDashboard';
+import PaymentAudit from './components/PaymentAudit';
 
 function App() {
   const navigate = useNavigate();
@@ -120,15 +121,12 @@ function App() {
 
               <div className="main-content">
                 <Routes>
-                  {/* Página de inicio neutra para TODOS los usuarios logueados */}
+                  {/* Página de inicio con Dashboard para todos los usuarios */}
                   <Route
                     path="/inicio"
                     element={
                       <ProtectedRoute {...authInfo}>
-                        <HomePage
-                          username={authInfo.username}
-                          userRoles={authInfo.userRoles}
-                        />
+                        <AdminDashboard />
                       </ProtectedRoute>
                     }
                   />
@@ -139,6 +137,14 @@ function App() {
                     element={
                       <ProtectedRoute {...authInfo}>
                         <Cashier />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/auditoria-pagos"
+                    element={
+                      <ProtectedRoute {...authInfo}>
+                        <PaymentAudit />
                       </ProtectedRoute>
                     }
                   />

@@ -82,86 +82,91 @@ function AdminDashboard() {
     return <div className="loading-state"><div className="spinner"></div><p>Cargando finanzas...</p></div>;
   }
 
-  const { capital_operativo, cartera_activa, mora_vencida, recaudacion_mensual, cash_flow_chart, portfolio_status } = dashboardData || {};
+  const { 
+    capital_disponible, 
+    caja_total, 
+    por_cobrar_capital, 
+    ganancia_pendiente, 
+    ganancia_realizada, 
+    cash_flow_chart 
+  } = dashboardData || {};
 
-  // Colores para gráficos
-  const COLORS_PIE = ['#10b981', '#ef4444']; // Verde (Al día), Rojo (Mora)
+  // Colores para gráficos (si se usaran)
+  const COLORS_PIE = ['#10b981', '#ef4444'];
 
   return (
     <div className="admin-dashboard-container" style={{ padding: '20px' }}>
       <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-          <h2 style={{ margin: 0, color: '#1e293b' }}>Panel Financiero</h2>
-          <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>Visión general del estado del negocio</p>
+          <h2 style={{ margin: 0, color: '#1e293b' }}>Panel Financiero Informativo</h2>
+          <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>Estado real del negocio</p>
         </div>
-        <button className="btn btn-primary" onClick={handleAperturaCaja}>
-          <FontAwesomeIcon icon={faPlusCircle} style={{ marginRight: '8px' }} />
-          Apertura de Caja
-        </button>
       </div>
 
       {/* KPI Cards */}
-      <div className="kpi-grid">
-        {/* Capital Operativo */}
-        <div className="kpi-card" style={{ borderLeft: '4px solid #3b82f6' }}>
-          <div className="kpi-icon" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}>
+      <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+        
+        {/* Capital Disponible */}
+        <div className="kpi-card" style={{ borderLeft: '4px solid #3b82f6', background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center' }}>
+          <div className="kpi-icon" style={{ backgroundColor: '#eff6ff', color: '#3b82f6', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem', fontSize: '1.2rem' }}>
             <FontAwesomeIcon icon={faMoneyBillWave} />
           </div>
           <div className="kpi-content">
-            <span className="kpi-label">Capital Disponible</span>
-            <h3 className="kpi-value">Gs. {formatMoney(capital_operativo)}</h3>
-            <span className="kpi-subtext">En Caja Operativa</span>
+            <span className="kpi-label" style={{ color: '#64748b', fontSize: '0.875rem', fontWeight: '500' }}>Capital Disponible</span>
+            <h3 className="kpi-value" style={{ margin: '4px 0', color: '#1e293b', fontSize: '1.25rem' }}>Gs. {formatMoney(capital_disponible)}</h3>
           </div>
         </div>
 
-        {/* Cartera Activa */}
-        <div className="kpi-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
-          <div className="kpi-icon" style={{ backgroundColor: '#f5f3ff', color: '#8b5cf6' }}>
+        {/* Caja Total Actual */}
+        <div className="kpi-card" style={{ borderLeft: '4px solid #10b981', background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center' }}>
+          <div className="kpi-icon" style={{ backgroundColor: '#ecfdf5', color: '#10b981', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem', fontSize: '1.2rem' }}>
+            <FontAwesomeIcon icon={faPlusCircle} />
+          </div>
+          <div className="kpi-content">
+            <span className="kpi-label" style={{ color: '#64748b', fontSize: '0.875rem', fontWeight: '500' }}>Caja Total Actual</span>
+            <h3 className="kpi-value" style={{ margin: '4px 0', color: '#1e293b', fontSize: '1.25rem' }}>Gs. {formatMoney(caja_total)}</h3>
+          </div>
+        </div>
+
+        {/* Por Cobrar (Capital) */}
+        <div className="kpi-card" style={{ borderLeft: '4px solid #f59e0b', background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center' }}>
+          <div className="kpi-icon" style={{ backgroundColor: '#fffbe3', color: '#f59e0b', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem', fontSize: '1.2rem' }}>
             <FontAwesomeIcon icon={faHandHoldingUsd} />
           </div>
           <div className="kpi-content">
-            <span className="kpi-label">Cartera Activa</span>
-            <h3 className="kpi-value">Gs. {formatMoney(cartera_activa)}</h3>
-            <span className="kpi-subtext">Total Colocado (Pendiente)</span>
+            <span className="kpi-label" style={{ color: '#64748b', fontSize: '0.875rem', fontWeight: '500' }}>Por Cobrar (Capital)</span>
+            <h3 className="kpi-value" style={{ margin: '4px 0', color: '#1e293b', fontSize: '1.25rem' }}>Gs. {formatMoney(por_cobrar_capital)}</h3>
           </div>
         </div>
 
-        {/* Mora Vencida */}
-        <div className="kpi-card" style={{ borderLeft: `4px solid ${mora_vencida > 0 ? '#ef4444' : '#10b981'}` }}>
-          <div className="kpi-icon" style={{ backgroundColor: mora_vencida > 0 ? '#fef2f2' : '#ecfdf5', color: mora_vencida > 0 ? '#ef4444' : '#10b981' }}>
+        {/* Ganancia Pendiente */}
+        <div className="kpi-card" style={{ borderLeft: '4px solid #8b5cf6', background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center' }}>
+          <div className="kpi-icon" style={{ backgroundColor: '#f5f3ff', color: '#8b5cf6', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem', fontSize: '1.2rem' }}>
             <FontAwesomeIcon icon={faExclamationCircle} />
           </div>
           <div className="kpi-content">
-            <span className="kpi-label">Mora Vencida</span>
-            <h3 className="kpi-value" style={{ color: mora_vencida > 0 ? '#dc2626' : undefined }}>
-              Gs. {formatMoney(mora_vencida)}
-            </h3>
-            <span className="kpi-subtext">
-              {mora_vencida > 0 ? '¡Atención Requerida!' : 'Sin Mora'}
-            </span>
+            <span className="kpi-label" style={{ color: '#64748b', fontSize: '0.875rem', fontWeight: '500' }}>Ganancia Pendiente</span>
+            <h3 className="kpi-value" style={{ margin: '4px 0', color: '#1e293b', fontSize: '1.25rem' }}>Gs. {formatMoney(ganancia_pendiente)}</h3>
           </div>
         </div>
 
-        {/* Recaudación Mensual */}
-        <div className="kpi-card" style={{ borderLeft: '4px solid #10b981' }}>
-          <div className="kpi-icon" style={{ backgroundColor: '#ecfdf5', color: '#10b981' }}>
+        {/* Ganancia Realizada */}
+        <div className="kpi-card" style={{ borderLeft: '4px solid #ec4899', background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center' }}>
+          <div className="kpi-icon" style={{ backgroundColor: '#fdf2f8', color: '#ec4899', width: '48px', height: '48px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem', fontSize: '1.2rem' }}>
             <FontAwesomeIcon icon={faCalendarCheck} />
           </div>
           <div className="kpi-content">
-            <span className="kpi-label">Recaudado (Mes)</span>
-            <h3 className="kpi-value">Gs. {formatMoney(recaudacion_mensual)}</h3>
-            <span className="kpi-subtext">Liquidez generada</span>
+            <span className="kpi-label" style={{ color: '#64748b', fontSize: '0.875rem', fontWeight: '500' }}>Ganancia Realizada</span>
+            <h3 className="kpi-value" style={{ margin: '4px 0', color: '#1e293b', fontSize: '1.25rem' }}>Gs. {formatMoney(ganancia_realizada)}</h3>
           </div>
         </div>
       </div>
 
-      {/* Charts Grid */}
-      <div className="charts-grid" style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-
-        {/* Flujo de Dinero (Area Chart) */}
-        <div className="chart-card full-width" style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          <h3 style={{ marginBottom: '20px', color: '#334155' }}>Flujo de Dinero Real (30 Días)</h3>
-          <div style={{ width: '100%', height: 300 }}>
+      {/* Flujo de Dinero (Mantenemos el gráfico original porque es valioso) */}
+      <div className="charts-grid" style={{ marginTop: '20px' }}>
+        <div className="chart-card" style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+          <h3 style={{ marginBottom: '20px', color: '#334155' }}>Flujo de Caja (Últimos 30 días)</h3>
+          <div style={{ width: '100%', height: 350 }}>
             <ResponsiveContainer>
               <AreaChart data={cash_flow_chart}>
                 <defs>
@@ -179,35 +184,9 @@ function AdminDashboard() {
                 <YAxis />
                 <Tooltip formatter={(value) => formatMoney(value)} />
                 <Legend />
-                <Area type="monotone" dataKey="ingresos" name="Ingresos (Caja)" stroke="#10b981" fillOpacity={1} fill="url(#colorIngreso)" />
-                <Area type="monotone" dataKey="egresos" name="Egresos (Caja)" stroke="#ef4444" fillOpacity={1} fill="url(#colorEgreso)" />
+                <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="#10b981" fillOpacity={1} fill="url(#colorIngreso)" />
+                <Area type="monotone" dataKey="egresos" name="Egresos" stroke="#ef4444" fillOpacity={1} fill="url(#colorEgreso)" />
               </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Estado de Cartera (Pie Chart) */}
-        <div className="chart-card" style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          <h3 style={{ marginBottom: '20px', color: '#334155' }}>Estado de Cartera</h3>
-          <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={portfolio_status}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {portfolio_status && portfolio_status.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS_PIE[index % COLORS_PIE.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatMoney(value)} />
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
             </ResponsiveContainer>
           </div>
         </div>

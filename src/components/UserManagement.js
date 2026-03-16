@@ -271,7 +271,7 @@ function UserManagement() {
           <p className="muted">No hay usuarios.</p>
         ) : (
           <div className="table-responsive">
-            <table className="role-table table"> {/* Added 'table' class for global styles */}
+            <table className="role-table table">
               <thead>
                 <tr>
                   <th>ID</th>

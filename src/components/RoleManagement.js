@@ -1,12 +1,12 @@
 // src/components/RoleManagement.js
 import React, { useState, useEffect, useMemo } from 'react';
+import { API_BASE_URL } from '../config/api';
 import Modal from 'react-modal';
 import Swal from 'sweetalert2';
 import './RoleManagement.css';
 
 Modal.setAppElement('#root');
 
-const API_BASE_URL = process.env.REACT_APP_API_URL; // p.ej. http://127.0.0.1:5000/api
 
 const ensureOk = async (response, fallbackMsg) => {
   if (response.status === 401) throw new Error('Sesión expirada. Vuelve a iniciar sesión.');

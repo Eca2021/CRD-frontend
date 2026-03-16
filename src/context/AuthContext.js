@@ -1,5 +1,6 @@
 // src/context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -27,8 +28,7 @@ export function AuthProvider({ children }) {
 
   // Login: postea al backend, guarda todo en localStorage y setUser
   const login = async (nombreUsuario, contrasena) => {
-    const API = process.env.REACT_APP_API_URL; // debería terminar en /api
-    const res = await fetch(`${API}/auth/login`, {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nombreUsuario, contrasena }),

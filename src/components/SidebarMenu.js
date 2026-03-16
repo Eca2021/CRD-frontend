@@ -139,6 +139,12 @@ function SidebarMenu({
                 <span>Caja</span>
               </a>
             </li>
+            <li className={`menu-item ${isActive('/auditoria-pagos') ? 'active' : ''}`}>
+              <a href="#" className="menu-link" onClick={(e) => { e.preventDefault(); handleMenuItemClick('/auditoria-pagos'); }}>
+                <i className="fas fa-history menu-icon"></i>
+                <span>Historial Pagos</span>
+              </a>
+            </li>
           </ul>
         </div>
 

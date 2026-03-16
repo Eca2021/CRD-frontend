@@ -19,6 +19,11 @@ function Cashier() {
         comprobante_nro: ''
     });
 
+    // View Payments State
+    const [isViewPaymentsOpen, setIsViewPaymentsOpen] = useState(false);
+    const [installmentPayments, setInstallmentPayments] = useState([]);
+    const [viewingInstallment, setViewingInstallment] = useState(null);
+
     useEffect(() => {
         loadFormasPago();
         loadClients();
@@ -64,9 +69,10 @@ function Cashier() {
     const openPayment = (cuota) => {
         setSelectedCuota(cuota);
         const saldo = parseFloat(cuota.monto_cuota) - parseFloat(cuota.monto_pagado || 0);
+        const efectivo = formasPago.find(f => f.nombre.toLowerCase().includes('efectivo'));
         setPaymentForm({
             id_detalle_credito: cuota.id_detalle,
-            id_forma_pago: '',
+            id_forma_pago: efectivo ? efectivo.id_forma_pago : '',
             monto_pagado: saldo.toFixed(2),
             comprobante_nro: ''
         });
@@ -86,7 +92,7 @@ function Cashier() {
     const savePayment = async (e) => {
         e.preventDefault();
         try {
-            await api.post(endpoints.payments, paymentForm);
+            await api.post(endpoints.payments.base, paymentForm);
             await Swal.fire({ icon: 'success', title: 'Pago registrado', timer: 1500, showConfirmButton: false });
             closePaymentModal();
             // Reload credits for the selected client
@@ -95,6 +101,48 @@ function Cashier() {
             }
         } catch (e) {
             Swal.fire('Error', e.message || 'No se pudo registrar el pago', 'error');
+        }
+    };
+
+    const handleViewPayments = async (cuota) => {
+        setViewingInstallment(cuota);
+        try {
+            const data = await api.get(`${endpoints.payments.base}detalle/${cuota.id_detalle}`);
+            setInstallmentPayments(data);
+            setIsViewPaymentsOpen(true);
+        } catch (e) {
+            Swal.fire('Error', 'No se pudo cargar el historial de pagos', 'error');
+        }
+    };
+
+    const handleAnnulPayment = async (pagoId) => {
+        const result = await Swal.fire({
+            title: '¿Anular pago?',
+            text: "Esta acción revertirá el pago en la cuota y generará un asiento de reversión.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, anular',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await api.post(`${endpoints.payments.base}${pagoId}/anular`);
+                await Swal.fire('Anulado', 'El pago ha sido anulado correctamente', 'success');
+                
+                // Refresh data
+                if (viewingInstallment) {
+                    const data = await api.get(`${endpoints.payments}detalle/${viewingInstallment.id_detalle}`);
+                    setInstallmentPayments(data);
+                }
+                if (selectedClient) {
+                    selectClient(selectedClient);
+                }
+            } catch (e) {
+                Swal.fire('Error', e.message || 'No se pudo anular el pago', 'error');
+            }
         }
     };
 
@@ -222,34 +270,76 @@ function Cashier() {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-50">
-                                                        {cred.detalles.map(d => (
-                                                            <tr key={d.id_detalle} className="hover:bg-slate-50/50 transition-colors">
-                                                                <td className="px-4 py-4 font-bold text-slate-500">#{d.numero_cuota}</td>
-                                                                <td className="px-4 py-4 font-medium text-slate-600">{d.fecha_vencimiento}</td>
-                                                                <td className="px-4 py-4 text-right font-black text-slate-700">{Number(d.monto_cuota).toLocaleString()}</td>
-                                                                <td className="px-4 py-4 text-right font-bold text-emerald-600">{Number(d.monto_pagado || 0).toLocaleString()}</td>
-                                                                <td className="px-4 py-4 text-center">
-                                                                    <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${d.estado_cuota === 'PAGADO' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                                                                        }`}>
-                                                                        {d.estado_cuota}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-4 py-4 text-center">
-                                                                    {d.estado_cuota !== 'PAGADO' ? (
-                                                                        <button
-                                                                            onClick={() => openPayment(d)}
-                                                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-xl text-[10px] font-black uppercase shadow-md shadow-indigo-100 transition-all active:scale-95"
-                                                                        >
-                                                                            Pagar
-                                                                        </button>
-                                                                    ) : (
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" style={{ width: '1.25rem', height: '1.25rem' }} className="h-5 w-5 text-emerald-500 mx-auto" viewBox="0 0 20 20" fill="currentColor">
-                                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                                        </svg>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
+                                                        {cred.detalles
+                                                            .sort((a, b) => a.numero_cuota - b.numero_cuota)
+                                                            .map((d, index, sortedDetalles) => {
+                                                                const isOverdue = d.estado_cuota !== 'PAGADO' && new Date(d.fecha_vencimiento) < new Date();
+                                                                
+                                                                // Sequential payment logic:
+                                                                // Enabled if it's the first one, or if all previous ones are PAGADO
+                                                                const isPreviousPaid = sortedDetalles
+                                                                    .slice(0, index)
+                                                                    .every(prev => prev.estado_cuota === 'PAGADO');
+                                                                
+                                                                const canPay = d.estado_cuota !== 'PAGADO' && isPreviousPaid;
+
+                                                                return (
+                                                                    <tr 
+                                                                        key={d.id_detalle} 
+                                                                        className={`transition-colors ${
+                                                                            isOverdue 
+                                                                                ? 'bg-amber-100/70 hover:bg-amber-100' 
+                                                                                : 'hover:bg-slate-50/50 grayscale-[0.3]'
+                                                                        }`}
+                                                                    >
+                                                                        <td className="px-4 py-4 font-bold text-slate-500">#{d.numero_cuota}</td>
+                                                                        <td className={`px-4 py-4 font-medium ${isOverdue ? 'text-amber-900' : 'text-slate-600'}`}>
+                                                                            {d.fecha_vencimiento}
+                                                                            {isOverdue && <span className="ml-2 text-[8px] font-black bg-amber-600 text-white px-1.5 py-0.5 rounded-full uppercase">Vencido</span>}
+                                                                        </td>
+                                                                        <td className="px-4 py-4 text-right font-black text-slate-700">{Number(d.monto_cuota).toLocaleString()}</td>
+                                                                        <td className="px-4 py-4 text-right font-bold text-emerald-600">{Number(d.monto_pagado || 0).toLocaleString()}</td>
+                                                                        <td className="px-4 py-4 text-center">
+                                                                            <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                                                                                d.estado_cuota === 'PAGADO' ? 'bg-emerald-100 text-emerald-600' : 
+                                                                                isOverdue ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500'
+                                                                            }`}>
+                                                                                {d.estado_cuota}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-4 text-center">
+                                                                            <div className="flex items-center justify-center gap-2">
+                                                                                {d.estado_cuota !== 'PAGADO' && (
+                                                                                    <button
+                                                                                        onClick={() => openPayment(d)}
+                                                                                        disabled={!canPay}
+                                                                                        className={`${
+                                                                                            canPay 
+                                                                                            ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' 
+                                                                                            : 'bg-slate-300 cursor-not-allowed opacity-50'
+                                                                                        } text-white px-4 py-1.5 rounded-xl text-[10px] font-black uppercase shadow-md transition-all active:scale-95`}
+                                                                                    >
+                                                                                        Pagar
+                                                                                    </button>
+                                                                                )}
+                                                                                {Number(d.monto_pagado || 0) > 0 && (
+                                                                                    <button
+                                                                                        onClick={() => handleViewPayments(d)}
+                                                                                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1"
+                                                                                        title="Ver Pagos"
+                                                                                    >
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                                        </svg>
+                                                                                        Pagos
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                     </tbody>
                                                 </table>
                                             </div>
@@ -309,20 +399,6 @@ function Cashier() {
                                     {formasPago.map(f => (<option key={f.id_forma_pago} value={f.id_forma_pago}>{f.nombre}</option>))}
                                 </select>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <label style={{ fontSize: '0.7rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', marginLeft: '0.25rem' }}>Nro Comprobante</label>
-                                <input
-                                    name="comprobante_nro"
-                                    type="text"
-                                    placeholder="Ej: 001-002-12345"
-                                    value={paymentForm.comprobante_nro}
-                                    onChange={onPaymentChange}
-                                    style={{
-                                        width: '100%', padding: '1rem', backgroundColor: '#f8fafc', border: '2px solid #f1f5f9', borderRadius: '1rem',
-                                        outline: 'none', fontWeight: '600', color: '#475569'
-                                    }}
-                                />
-                            </div>
                             <div style={{ paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <button
                                     type="submit"
@@ -346,6 +422,68 @@ function Cashier() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* MODAL HISTORIAL DE PAGOS */}
+            {isViewPaymentsOpen && viewingInstallment && (
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, backdropFilter: 'blur(8px)' }}>
+                    <div style={{ backgroundColor: 'white', width: '100%', maxWidth: '600px', borderRadius: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+                        <div style={{ padding: '1.5rem', background: '#1e293b', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: '900', textTransform: 'uppercase', margin: 0 }}>Historial de Pagos - Cuota #{viewingInstallment.numero_cuota}</h3>
+                            <button onClick={() => setIsViewPaymentsOpen(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.5rem' }}>&times;</button>
+                        </div>
+                        <div style={{ padding: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+                            {installmentPayments.length === 0 ? (
+                                <p style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No hay pagos registrados para esta cuota.</p>
+                            ) : (
+                                <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left', color: '#64748b' }}>
+                                            <th style={{ padding: '0.75rem' }}>Fecha</th>
+                                            <th style={{ padding: '0.75rem' }}>Monto</th>
+                                            <th style={{ padding: '0.75rem' }}>Estado</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'center' }}>Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {installmentPayments.map(p => (
+                                            <tr key={p.id_pago} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                <td style={{ padding: '0.75rem' }}>{new Date(p.fecha_pago).toLocaleDateString()}</td>
+                                                <td style={{ padding: '0.75rem', fontWeight: 'bold' }}>Gs. {Number(p.monto_pagado).toLocaleString()}</td>
+                                                <td style={{ padding: '0.75rem' }}>
+                                                    <span style={{ 
+                                                        padding: '0.2rem 0.5rem', borderRadius: '0.5rem', fontSize: '0.65rem', fontWeight: 'bold',
+                                                        backgroundColor: p.estado === 'ACTIVO' ? '#dcfce7' : '#fee2e2',
+                                                        color: p.estado === 'ACTIVO' ? '#166534' : '#991b1b'
+                                                    }}>
+                                                        {p.estado}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                                                    {p.estado === 'ACTIVO' && (
+                                                        <button 
+                                                            onClick={() => handleAnnulPayment(p.id_pago)}
+                                                            style={{ backgroundColor: '#fee2e2', color: '#991b1b', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold' }}
+                                                        >
+                                                            Anular
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        <div style={{ padding: '1rem', borderTop: '1px solid #f1f5f9', textAlign: 'right' }}>
+                            <button 
+                                onClick={() => setIsViewPaymentsOpen(false)}
+                                style={{ padding: '0.5rem 1.5rem', backgroundColor: '#f1f5f9', border: 'none', borderRadius: '0.75rem', fontWeight: 'bold', color: '#64748b', cursor: 'pointer' }}
+                            >
+                                Cerrar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

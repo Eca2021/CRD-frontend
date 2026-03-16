@@ -11,34 +11,36 @@ function CreditManagement() {
     // ESTADOS cambios de fecha 
     const [creditos, setCreditos] = useState([]);
     const [clientes, setClientes] = useState([]);
-    const [tasas, setTasas] = useState([]);
+    const [reglas, setReglas] = useState([]);
     const [formasPago, setFormasPago] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCreditDetails, setSelectedCreditDetails] = useState(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
-    const [form, setForm] = useState({ id_cliente: '', id_tasa: '', monto: '', cuotas: '', fecha_primer_pago: '' });
+    const [form, setForm] = useState({ id_cliente: '', id_regla: '', monto: '', cuotas: '', fecha_primer_pago: '' });
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredClients, setFilteredClients] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedClientObj, setSelectedClientObj] = useState(null);
     const [preview, setPreview] = useState(null);
-    const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-    const [paymentForm, setPaymentForm] = useState({ id_detalle_credito: '', id_forma_pago: '', monto_pagado: '', comprobante_nro: '' });
-    const [selectedCuota, setSelectedCuota] = useState(null);
+    const [isApprovalOpen, setIsApprovalOpen] = useState(false);
+    const [showCuotasDropdown, setShowCuotasDropdown] = useState(false);
+    const [hasPrinted, setHasPrinted] = useState(false);
+    const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+    const [selectedPaymentDetail, setSelectedPaymentDetail] = useState(null);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const [cData, clData, tData, fpData] = await Promise.all([
+            const [cData, clData, rData, fpData] = await Promise.all([
                 api.get(endpoints.credits.base),
                 api.get(endpoints.clients),
-                api.get(endpoints.rates),
+                api.get(endpoints.rules),
                 api.get(endpoints.paymentMethods)
             ]);
             setCreditos(Array.isArray(cData) ? cData : []);
             setClientes(Array.isArray(clData) ? clData : []);
-            setTasas(Array.isArray(tData) ? tData : []);
+            setReglas(Array.isArray(rData) ? rData : []);
             setFormasPago(Array.isArray(fpData) ? fpData : []);
         } catch (e) {
             Swal.fire('Error', 'Error cargando datos', 'error');
@@ -49,8 +51,16 @@ function CreditManagement() {
 
     useEffect(() => { loadData(); }, []);
 
+    useEffect(() => {
+        const handleClick = () => setShowCuotasDropdown(false);
+        if (showCuotasDropdown) {
+            window.addEventListener('click', handleClick);
+        }
+        return () => window.removeEventListener('click', handleClick);
+    }, [showCuotasDropdown]);
+
     const openCreate = () => {
-        setForm({ id_cliente: '', id_tasa: '', monto: '', cuotas: '', fecha_primer_pago: '' });
+        setForm({ id_cliente: '', id_regla: '', monto: '', cuotas: '', fecha_primer_pago: '' });
         setSearchTerm('');
         setSelectedClientObj(null);
         setPreview(null);
@@ -82,29 +92,151 @@ function CreditManagement() {
     };
 
     const calculate = async () => {
-        // Validación manual para mostrar error específico
         if (!form.id_cliente) return Swal.fire('Atención', 'Debe seleccionar un cliente primero.', 'warning');
-        if (!form.id_tasa) return Swal.fire('Atención', 'Debe seleccionar una tasa de interés.', 'warning');
+        if (!form.id_regla) return Swal.fire('Atención', 'Debe seleccionar una regla de crédito.', 'warning');
         if (!form.monto) return Swal.fire('Atención', 'Debe ingresar el monto del crédito.', 'warning');
-        if (!form.cuotas) return Swal.fire('Atención', 'Debe ingresar la cantidad de cuotas.', 'warning');
+        if (!form.cuotas) return Swal.fire('Atención', 'Debe seleccionar la cantidad de cuotas.', 'warning');
 
         try {
             const data = await api.post(endpoints.credits.preview, {
                 monto: form.monto,
                 cuotas: form.cuotas,
-                id_tasa: form.id_tasa,
+                id_regla: form.id_regla,
                 fecha_primer_pago: form.fecha_primer_pago
             });
             setPreview(data);
+            setHasPrinted(false); // Reset print status for new calculation
+            setIsApprovalOpen(true); // Abrir el modal grande de aprobación
         } catch (e) {
             Swal.fire('Error', 'No se pudo generar el plan de pagos.', 'error');
         }
     };
 
+    const formatPY = (val) => {
+        if (!val) return '';
+        return String(val).replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    };
+
+    const handleMontoChange = (e) => {
+        const val = e.target.value.replace(/\D/g, "");
+        setForm({ ...form, monto: val });
+    };
+
+    const executePrint = () => {
+        const printWindow = window.open('', '_blank');
+        const username = localStorage.getItem('username') || 'Analista';
+        const clientName = `${selectedClientObj?.nombre} ${selectedClientObj?.apellido}`;
+        
+        let planRows = '';
+        preview.plan.forEach(p => {
+            planRows += `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 10px;"># ${p.numero_cuota}</td>
+                    <td style="padding: 10px;">${p.fecha_vencimiento}</td>
+                    <td style="padding: 10px; text-align: right; font-weight: bold;">${Number(p.cuota_total).toLocaleString()} Gs.</td>
+                    <td style="padding: 10px; text-align: center; color: #666; font-size: 10px;">PENDIENTE</td>
+                </tr>
+            `;
+        });
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Comprobante de Crédito - ${clientName}</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 40px; color: #333; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+                        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+                        .info-box { padding: 15px; background: #f9f9f9; border-radius: 10px; }
+                        .label { font-size: 10px; color: #666; text-transform: uppercase; font-weight: bold; }
+                        .value { font-size: 16px; font-weight: bold; margin-top: 5px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th { text-align: left; padding: 10px; border-bottom: 2px solid #eee; font-size: 12px; color: #666; }
+                        .signatures { margin-top: 100px; display: flex; justify-content: space-around; }
+                        .sig-box { text-align: center; width: 200px; border-top: 1px solid #000; padding-top: 10px; font-size: 12px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1 style="margin:0; text-transform: uppercase; letter-spacing: 2px;">Comprobante de Crédito</h1>
+                        <p style="margin:5px 0 0; color: #666;">Resumen de Aprobación y Plan de Pagos</p>
+                    </div>
+                    
+                    <div class="info-grid">
+                        <div class="info-box">
+                            <div class="label">Beneficiario</div>
+                            <div class="value">${clientName}</div>
+                            <div style="font-size: 12px; color: #666;">Doc: ${selectedClientObj?.documento}</div>
+                        </div>
+                        <div class="info-box" style="background: #333; color: white;">
+                            <div class="label" style="color: #aaa;">Monto Total a Devolver</div>
+                            <div class="value" style="font-size: 24px;">${Number(preview.monto_total).toLocaleString()} Gs.</div>
+                            <div style="font-size: 12px; opacity: 0.8;">Capital: ${Number(form.monto).toLocaleString()} Gs. | ${form.cuotas} Cuotas</div>
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>CUOTA</th>
+                                <th>VENCIMIENTO</th>
+                                <th style="text-align: right;">MONTO</th>
+                                <th style="text-align: center;">ESTADO</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${planRows}
+                        </tbody>
+                    </table>
+
+                    <div class="signatures">
+                        <div class="sig-box">
+                            FIRMA DEL CLIENTE<br>
+                            <span style="font-size: 10px; font-weight: normal; color: #666;">${clientName}</span>
+                        </div>
+                        <div class="sig-box">
+                            AUTORIZADO POR<br>
+                            <span style="font-size: 10px; font-weight: normal; color: #666;">${username}</span>
+                        </div>
+                    </div>
+
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(function() { window.close(); }, 500);
+                        };
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
     const save = async () => {
+        const result = await Swal.fire({
+            title: 'Confirmar Aprobación',
+            text: "¿Desea imprimir el comprobante de este crédito?",
+            icon: 'question',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#10b981',
+            denyButtonColor: '#334155',
+            cancelButtonColor: '#ef4444',
+            confirmButtonText: 'Sí, imprimir y aprobar',
+            denyButtonText: 'No, solo aprobar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isDismissed) return;
+
+        if (result.isConfirmed) {
+            executePrint();
+        }
+
         try {
             await api.post(endpoints.credits.base, form);
             await Swal.fire('Éxito', 'Crédito otorgado correctamente', 'success');
+            setIsApprovalOpen(false);
             setIsOpen(false);
             loadData();
         } catch (e) {
@@ -131,39 +263,18 @@ function CreditManagement() {
 
 
 
-    const openPayment = (cuota) => {
-        setSelectedCuota(cuota);
-        const saldo = parseFloat(cuota.monto_cuota) - parseFloat(cuota.monto_pagado || 0);
-        setPaymentForm({
-            id_detalle_credito: cuota.id_detalle,
-            id_forma_pago: '',
-            monto_pagado: saldo.toFixed(2),
-            comprobante_nro: ''
-        });
-        setIsPaymentOpen(true);
+    const closePaymentModal = () => { loadData(); };
+
+    const openPaymentDetail = (installment) => {
+        setSelectedPaymentDetail(installment);
+        setIsPaymentDetailOpen(true);
     };
 
-    const closePaymentModal = () => { setIsPaymentOpen(false); setSelectedCuota(null); loadData(); };
-
-    const onPaymentChange = (e) => {
-        const { name, value } = e.target;
-        setPaymentForm(p => ({ ...p, [name]: value }));
+    const closePaymentDetail = () => {
+        setIsPaymentDetailOpen(false);
+        setSelectedPaymentDetail(null);
     };
 
-    const savePayment = async (e) => {
-        e.preventDefault();
-        try {
-            await api.post(endpoints.payments, paymentForm);
-            await Swal.fire({ icon: 'success', title: 'Pago registrado', timer: 1500, showConfirmButton: false });
-            closePaymentModal();
-            // Si el modal de detalles está abierto, actualizarlo
-            if (isDetailsOpen && selectedCreditDetails) {
-                openDetails(selectedCreditDetails);
-            }
-        } catch (e) {
-            Swal.fire('Error', e.message || 'Error al pagar', 'error');
-        }
-    };
 
     const anularCredito = async () => {
         if (!selectedCreditDetails) return;
@@ -296,27 +407,63 @@ function CreditManagement() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="md:col-span-2">
-                                        <label className="text-xs font-bold text-slate-500 block mb-2">Elegir Tasa de Interés</label>
+                                        <label className="text-xs font-bold text-slate-500 block mb-2">Regla de Crédito (Plan)</label>
                                         <select
-                                            value={form.id_tasa}
-                                            onChange={(e) => setForm({ ...form, id_tasa: e.target.value })}
+                                            value={form.id_regla}
+                                            onChange={(e) => setForm({ ...form, id_regla: e.target.value })}
                                             className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors cursor-pointer bg-white"
                                         >
-                                            <option value="">-- Seleccionar Tasa --</option>
-                                            {tasas.map(t => (
-                                                <option key={t.id_tasa} value={t.id_tasa}>{t.nombre_tasa} ({t.porcentaje}%)</option>
+                                            <option value="">-- Seleccionar Regla --</option>
+                                            {reglas.map(r => (
+                                                <option key={r.id_regla} value={r.id_regla}>{r.nombre} ({r.tasa_porcentaje}%)</option>
                                             ))}
                                         </select>
                                     </div>
 
                                     <div>
                                         <label className="text-xs font-bold text-slate-500 block mb-2">Monto a Prestar</label>
-                                        <input type="number" placeholder="0.00" value={form.monto} onChange={(e) => setForm({ ...form, monto: e.target.value })} className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-extrabold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                                        <input 
+                                            type="text" 
+                                            placeholder="0.000" 
+                                            value={formatPY(form.monto)} 
+                                            onChange={handleMontoChange} 
+                                            className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-extrabold text-slate-700 outline-none focus:border-blue-500 transition-colors" 
+                                        />
                                     </div>
 
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 block mb-2">Cuotas (Semanal)</label>
-                                        <input type="number" placeholder="Ej: 12" value={form.cuotas} onChange={(e) => setForm({ ...form, cuotas: e.target.value })} className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-extrabold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                                    <div className="relative">
+                                        <label className="text-xs font-bold text-slate-500 block mb-2">Cantidad de Cuotas</label>
+                                        <div 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowCuotasDropdown(!showCuotasDropdown);
+                                            }}
+                                            className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-extrabold text-slate-700 outline-none focus:border-blue-500 transition-colors cursor-pointer bg-white flex justify-between items-center"
+                                        >
+                                            <span>{form.cuotas ? `${form.cuotas} Cuotas` : 'Nro de Cuotas'}</span>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`transition-transform ${showCuotasDropdown ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6"></path></svg>
+                                        </div>
+                                        
+                                        {showCuotasDropdown && (
+                                            <div 
+                                                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+                                                className="absolute w-full bg-white border-2 border-slate-100 rounded-2xl mt-2 shadow-2xl z-20 max-h-[380px] overflow-y-auto custom-scroll"
+                                            >
+                                                {[...Array(48)].map((_, i) => (
+                                                    <div 
+                                                        key={i+1} 
+                                                        onClick={() => {
+                                                            setForm({ ...form, cuotas: i+1 });
+                                                            setShowCuotasDropdown(false);
+                                                        }}
+                                                        className={`p-3 px-5 cursor-pointer font-bold text-sm transition-colors border-b border-slate-50 last:border-none
+                                                            ${form.cuotas == i+1 ? 'bg-blue-600 text-white' : 'hover:bg-slate-50 text-slate-600'}`}
+                                                    >
+                                                        {i+1} Cuotas
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>
@@ -330,39 +477,14 @@ function CreditManagement() {
                                     </div>
                                 </div>
 
-                                <button onClick={calculate} className="w-full mt-6 p-4 bg-slate-900 text-white rounded-xl border-none font-bold cursor-pointer uppercase text-xs tracking-widest hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200">
+                                <button onClick={calculate} className="w-full mt-6 p-4 bg-slate-900 text-white rounded-xl border-none font-bold cursor-pointer uppercase text-xs tracking-widest hover:bg-slate-800 transition-colors shadow-lg shadow-blue-900/20">
                                     Calcular Plan de Pagos
                                 </button>
-
-                                {preview && (
-                                    <div className="mt-6 bg-emerald-50 p-5 rounded-2xl border-2 border-emerald-200">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <span className="text-xs font-black text-emerald-700">TOTAL A DEVOLVER:</span>
-                                            <span className="text-xl font-black text-emerald-800">{Number(preview.monto_total).toLocaleString()} Gs.</span>
-                                        </div>
-                                        <div className="max-h-[150px] overflow-y-auto bg-white rounded-xl border border-emerald-100">
-                                            <table className="w-full text-xs">
-                                                <tbody className="font-semibold text-slate-600">
-                                                    {preview.plan.map(p => (
-                                                        <tr key={p.numero_cuota} className="border-b border-emerald-50">
-                                                            <td className="p-2">Cuota {p.numero_cuota}</td>
-                                                            <td className="p-2 text-right">{Number(p.cuota_total).toLocaleString()} Gs.</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
 
                         <div className="p-6 md:px-10 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-4">
                             <button onClick={() => setIsOpen(false)} className="px-6 py-3 bg-transparent border-none font-bold text-slate-500 hover:text-slate-700 cursor-pointer transition-colors">DESCARTAR</button>
-                            <button onClick={save} disabled={!preview} className={`px-8 py-3 rounded-xl border-none font-bold cursor-pointer text-white shadow-lg transition-all
-                                ${preview ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-slate-300 cursor-not-allowed'}`}>
-                                GUARDAR CRÉDITO
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -419,7 +541,7 @@ function CreditManagement() {
                                                 <th className="p-3 md:p-4">Vencimiento</th>
                                                 <th className="p-3 md:p-4 text-right">Monto Cuota</th>
                                                 <th className="p-3 md:p-4 text-right">Monto Pagado</th>
-                                                <th className="p-3 md:p-4 text-center">Acción</th>
+                                                <th className="p-3 md:p-4 text-center">Estado</th>
                                             </tr>
                                         </thead>
                                         <tbody className="font-medium">
@@ -433,16 +555,21 @@ function CreditManagement() {
                                                             {d.monto_pagado > 0 ? Number(d.monto_pagado).toLocaleString() : '-'}
                                                         </td>
                                                         <td className="p-4 text-center">
-                                                            {d.estado_cuota !== 'PAGADO' && selectedCreditDetails.estado !== 'ANULADO' ? (
-                                                                <button
-                                                                    onClick={() => openPayment(d)}
-                                                                    className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-[0.7rem] font-black uppercase border-none cursor-pointer shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition-colors"
-                                                                >
-                                                                    Pagar
-                                                                </button>
-                                                            ) : (
-                                                                <span className="text-[0.7rem] font-black text-emerald-500 uppercase">Completado</span>
-                                                            )}
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                 {d.estado_cuota !== 'PAGADO' ? (
+                                                                     <span className="text-[0.7rem] font-black text-amber-500 uppercase">Pendiente</span>
+                                                                 ) : (
+                                                                     <span className="text-[0.7rem] font-black text-emerald-500 uppercase">Completado</span>
+                                                                 )}
+                                                                 {d.monto_pagado > 0 && (
+                                                                     <button 
+                                                                         onClick={() => openPaymentDetail(d)}
+                                                                         className="text-[0.6rem] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-tighter cursor-pointer border-none bg-transparent p-0"
+                                                                     >
+                                                                         detalle_pago
+                                                                     </button>
+                                                                 )}
+                                                             </div>
                                                         </td>
                                                     </tr>
                                                 ))
@@ -458,8 +585,7 @@ function CreditManagement() {
                                 </div>
                             </div>
                         </div>
-
-                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
                             {selectedCreditDetails.estado !== 'ANULADO' && !selectedCreditDetails.detalles.some(d => parseFloat(d.monto_pagado) > 0) ? (
                                 <button
                                     onClick={anularCredito}
@@ -468,7 +594,7 @@ function CreditManagement() {
                                     Anular Crédito
                                 </button>
                             ) : (
-                                <div></div> // Espaciador para mantener el justify-between si no hay botón
+                                <div></div> // Espaciador para mantener el justify-between si no hay botÃ³n
                             )}
 
                             <button
@@ -482,73 +608,206 @@ function CreditManagement() {
                 </div>
             )}
 
-            {/* MODAL PAGO */}
-            {isPaymentOpen && selectedCuota && (
-                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, backdropFilter: 'blur(8px)' }}>
-                    <div className="bg-white w-full max-w-[450px] rounded-[2rem] shadow-2xl overflow-hidden border border-slate-100 mx-4">
-                        <div className="p-8 md:p-10 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white text-center relative">
-                            <h3 className="text-2xl font-black uppercase tracking-tight m-0">Registrar Pago</h3>
-                            <p className="text-indigo-100 text-xs font-bold mt-1">CUOTA NRO #{selectedCuota.numero_cuota}</p>
-                            <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-white text-indigo-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-4 border-white">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+
+            {/* MODAL APROBACION - PLAN DE PAGOS DETALLADO */}
+            {isApprovalOpen && preview && (
+                <div className="modal-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, backdropFilter: 'blur(10px)' }}>
+                    <div className="bg-white w-[95%] max-w-[1000px] rounded-[2.5rem] overflow-hidden flex flex-col max-h-[92vh] shadow-2xl animate-in zoom-in-95 duration-300 print:max-h-none print:overflow-visible">
+                        {/* CONTENIDO IMPRIMIBLE */}
+                        <div className="printable-content flex-1 flex flex-col overflow-hidden bg-white">
+                            {/* Header Glassmorphism */}
+                            <div className="p-8 md:px-12 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200 no-print">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="m-0 font-black text-slate-900 tracking-tight text-xl uppercase">Validación de Crédito</h3>
+                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Verificación final antes de aprobar</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsApprovalOpen(false)} className="bg-white border border-slate-200 text-slate-400 text-xl w-10 h-10 rounded-xl hover:bg-slate-50 cursor-pointer flex items-center justify-center transition-all hover:rotate-90 no-print">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                            </div>
+
+                            <div className="p-8 md:p-12 overflow-y-auto bg-white/50 flex-1 print:overflow-visible print:h-auto">
+                            {/* Panel Superior: Información Resumida */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+                                {/* Cliente */}
+                                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2">
+                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Beneficiario</span>
+                                    <h4 className="text-lg font-black text-slate-800 m-0">{selectedClientObj?.nombre} {selectedClientObj?.apellido}</h4>
+                                    <p className="text-sm font-bold text-slate-400 m-0">Doc: {selectedClientObj?.documento}</p>
+                                </div>
+                                {/* Monto y Cuotas */}
+                                <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl shadow-slate-200 flex flex-col justify-center">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto a Desembolsar</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <h4 className="text-3xl font-black m-0">{Number(form.monto).toLocaleString()}</h4>
+                                        <span className="text-xs font-bold opacity-60 uppercase">Gs.</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-blue-400 m-0 mt-1 whitespace-nowrap">{form.cuotas} Cuotas de {Number(preview.plan[0].cuota_total).toLocaleString()} Gs.</p>
+                                </div>
+                                {/* Analista y Fecha */}
+                                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-2">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ejecutor del Crédito</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 font-black text-xs uppercase">
+                                            {localStorage.getItem('username')?.charAt(0) || 'A'}
+                                        </div>
+                                        <span className="text-sm font-black text-slate-700">{localStorage.getItem('username') || 'Analista Actual'}</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-400 m-0 mt-2 flex items-center gap-2">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                        Inicio: {form.fecha_primer_pago}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Detalle de Cuotas */}
+                            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden mb-4">
+                                <div className="px-8 py-5 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+                                    <h5 className="m-0 font-black text-slate-500 text-xs uppercase tracking-widest">Calendario de Pagos Estimado</h5>
+                                    <span className="text-xs font-black text-emerald-600">Total Devuelto: {Number(preview.monto_total).toLocaleString()} Gs.</span>
+                                </div>
+                                <div className="overflow-y-auto px-4 py-2">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="text-slate-400 font-black text-[10px] uppercase">
+                                                <th className="p-4 text-left">Nro Cuota</th>
+                                                <th className="p-4 text-left">F. Vencimiento</th>
+                                                <th className="p-4 text-right">Capital + Int.</th>
+                                                <th className="p-4 text-center">Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="font-bold text-slate-600">
+                                            {preview.plan.map(p => (
+                                                <tr key={p.numero_cuota} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                                    <td className="p-4 text-blue-600"># {p.numero_cuota}</td>
+                                                    <td className="p-4">{p.fecha_vencimiento}</td>
+                                                    <td className="p-4 text-right text-slate-900 font-black">{Number(p.cuota_total).toLocaleString()} <small className="text-slate-400">Gs.</small></td>
+                                                    <td className="p-4 text-center">
+                                                        <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-[10px] uppercase font-black tracking-tighter border border-amber-100 shadow-sm shadow-amber-50 no-print">PROYECTADO</span>
+                                                        <span className="hidden print:inline text-[10px] text-slate-400 font-black uppercase">Pendiente</span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* FIRMA - SOLO IMPRESION */}
+                            <div className="hidden print:flex mt-20 justify-around border-t border-slate-100 pt-10">
+                                <div className="text-center border-t-2 border-slate-900 pt-4 w-60">
+                                    <p className="m-0 font-black text-xs uppercase tracking-widest">Firma del Cliente</p>
+                                    <p className="m-0 text-[10px] text-slate-400 font-bold uppercase mt-1">{selectedClientObj?.nombre} {selectedClientObj?.apellido}</p>
+                                </div>
+                                <div className="text-center border-t-2 border-slate-900 pt-4 w-60">
+                                    <p className="m-0 font-black text-xs uppercase tracking-widest">Autorizado por</p>
+                                    <p className="m-0 text-[10px] text-slate-400 font-bold uppercase mt-1">{localStorage.getItem('username') || 'Analista'}</p>
                             </div>
                         </div>
-                        <form onSubmit={savePayment} className="p-8 md:p-10 pt-12 flex flex-col gap-6 bg-white">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Monto Pagado</label>
-                                <input
-                                    name="monto_pagado"
-                                    type="number"
-                                    step="0.01"
-                                    value={paymentForm.monto_pagado}
-                                    onChange={onPaymentChange}
-                                    required
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-black text-2xl text-slate-700 text-center focus:border-indigo-500 transition-colors"
-                                />
+                    </div>
+                </div>
+
+                {/* Footer con acciones finales */}
+                        <div className="p-8 md:px-12 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6 no-print">
+                            <div className="flex items-center gap-3">
+                                <span className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-lg shadow-emerald-200"></span>
+                                <p className="text-xs text-slate-400 font-bold m-0 uppercase tracking-tighter">Listo para aprobación. Confirme todos los campos.</p>
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pago</label>
-                                <select
-                                    name="id_forma_pago"
-                                    value={paymentForm.id_forma_pago}
-                                    onChange={onPaymentChange}
-                                    required
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-slate-600 appearance-none cursor-pointer focus:border-indigo-500 transition-colors"
-                                >
-                                    <option value="">Seleccione...</option>
-                                    {formasPago.map(f => (<option key={f.id_forma_pago} value={f.id_forma_pago}>{f.nombre}</option>))}
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Nro Comprobante</label>
-                                <input
-                                    name="comprobante_nro"
-                                    type="text"
-                                    placeholder="Ej: 001-002-12345"
-                                    value={paymentForm.comprobante_nro}
-                                    onChange={onPaymentChange}
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-semibold text-slate-600 focus:border-indigo-500 transition-colors"
-                                />
-                            </div>
-                            <div className="pt-4 flex flex-col gap-3">
+                            <div className="flex gap-4">
                                 <button
-                                    type="submit"
-                                    className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase tracking-wider text-xs shadow-lg shadow-emerald-600/20 border-none cursor-pointer hover:bg-emerald-700 transition-colors"
+                                    onClick={() => setIsApprovalOpen(false)}
+                                    className="flex-1 md:flex-initial px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-slate-500 uppercase text-xs tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-all cursor-pointer shadow-sm active:scale-95"
                                 >
-                                    Confirmar Pago
+                                    Corregir Datos
                                 </button>
                                 <button
-                                    type="button"
-                                    onClick={closePaymentModal}
-                                    className="w-full p-4 text-slate-400 font-bold border-none bg-transparent cursor-pointer hover:text-slate-600 transition-colors"
+                                    onClick={save}
+                                    className="flex-1 md:flex-initial px-10 py-4 bg-emerald-600 text-white rounded-2xl border-none font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-3 cursor-pointer active:scale-95 hover:bg-emerald-700"
                                 >
-                                    Volver
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                                    APROBAR CRÉDITO
                                 </button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
             )}
+            {/* MODAL DETALLES DE PAGO POR CUOTA */}
+            <Modal
+                isOpen={isPaymentDetailOpen}
+                onRequestClose={closePaymentDetail}
+                style={{
+                    overlay: { backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 150, backdropFilter: 'blur(8px)' },
+                    content: {
+                        top: '50%', left: '50%', right: 'auto', bottom: 'auto',
+                        transform: 'translate(-50%, -50%)',
+                        padding: '0', border: 'none', borderRadius: '2rem',
+                        width: '90%', maxWidth: '600px', backgroundColor: '#fff',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                    }
+                }}
+            >
+                <div className="flex flex-col">
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <div>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest m-0">Detalles de Pago</h3>
+                            <p className="text-[0.65rem] text-slate-400 font-bold uppercase m-0 mt-1">Cuota #{selectedPaymentDetail?.numero_cuota}</p>
+                        </div>
+                        <button onClick={closePaymentDetail} className="text-slate-400 hover:text-slate-600 transition-colors border-none bg-transparent cursor-pointer">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[0.6rem]">
+                                    <tr>
+                                        <th className="p-3">Fecha de Pago</th>
+                                        <th className="p-3 text-right">Monto</th>
+                                        <th className="p-3">Forma</th>
+                                        <th className="p-3">Referencia</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="font-medium text-[0.75rem]">
+                                    {selectedPaymentDetail?.pagos?.map(p => (
+                                        <tr key={p.id_pago} className="border-t border-slate-100 hover:bg-slate-50">
+                                            <td className="p-3 text-slate-600">
+                                                {new Date(p.fecha_pago).toLocaleString('es-ES', { 
+                                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                                    hour: '2-digit', minute: '2-digit'
+                                                })}
+                                            </td>
+                                            <td className="p-3 text-right font-black text-emerald-600">{Number(p.monto_pagado).toLocaleString()}</td>
+                                            <td className="p-3">
+                                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[0.6rem] font-black uppercase">
+                                                    {p.forma_pago}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-slate-400 font-mono text-[0.65rem] uppercase">{p.comprobante_nro || 'S/N'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                        <button
+                            onClick={closePaymentDetail}
+                            className="px-6 py-2.5 bg-white border border-slate-200 rounded-xl text-[0.65rem] font-black uppercase text-slate-500 hover:text-slate-800 transition-all cursor-pointer shadow-sm shadow-slate-200/50"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
         </div>
     );
 }

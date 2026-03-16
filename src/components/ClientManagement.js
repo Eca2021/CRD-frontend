@@ -184,7 +184,7 @@ function ClientManagement() {
                     <p className="muted">No hay clientes encontrados.</p>
                 ) : (
                     <div className="table-responsive">
-                        <table className="role-table table"> {/* Added 'table' class */}
+                        <table className="role-table table">
                             <thead>
                                 <tr>
                                     <th>Documento</th>
