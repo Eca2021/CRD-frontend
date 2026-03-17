@@ -135,7 +135,7 @@ function AccountingModule() {
                     <div className="card-stat" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
-                                <p style={{ margin: 0, opacity: 0.9, fontSize: '0.9rem' }}>Capital Operativo (Caja)</p>
+                                <p style={{ margin: 0, opacity: 0.9, fontSize: '0.9rem' }}>Efectivo en Caja (Liquidez)</p>
                                 <h3 style={{ margin: '5px 0', fontSize: '1.8rem' }}>{formatMoney(dashboardData.capital_operativo)}</h3>
                             </div>
                             <FontAwesomeIcon icon={faCashRegister} size="2x" style={{ opacity: 0.8 }} />

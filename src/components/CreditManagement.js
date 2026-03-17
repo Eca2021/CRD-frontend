@@ -17,7 +17,15 @@ function CreditManagement() {
     const [selectedCreditDetails, setSelectedCreditDetails] = useState(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
-    const [form, setForm] = useState({ id_cliente: '', id_regla: '', monto: '', cuotas: '', fecha_primer_pago: '' });
+    const [form, setForm] = useState({ 
+        id_cliente: '', 
+        id_regla: '', 
+        monto: '', 
+        cuotas: '', 
+        fecha_primer_pago: '',
+        usar_redondeo: false,
+        monto_cuota_redondeado: ''
+    });
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredClients, setFilteredClients] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -60,7 +68,10 @@ function CreditManagement() {
     }, [showCuotasDropdown]);
 
     const openCreate = () => {
-        setForm({ id_cliente: '', id_regla: '', monto: '', cuotas: '', fecha_primer_pago: '' });
+        setForm({ 
+            id_cliente: '', id_regla: '', monto: '', cuotas: '', fecha_primer_pago: '',
+            usar_redondeo: false, monto_cuota_redondeado: ''
+        });
         setSearchTerm('');
         setSelectedClientObj(null);
         setPreview(null);
@@ -102,7 +113,9 @@ function CreditManagement() {
                 monto: form.monto,
                 cuotas: form.cuotas,
                 id_regla: form.id_regla,
-                fecha_primer_pago: form.fecha_primer_pago
+                fecha_primer_pago: form.fecha_primer_pago,
+                usar_redondeo: form.usar_redondeo,
+                monto_cuota_redondeado: form.monto_cuota_redondeado
             });
             setPreview(data);
             setHasPrinted(false); // Reset print status for new calculation
@@ -415,7 +428,7 @@ function CreditManagement() {
                                         >
                                             <option value="">-- Seleccionar Regla --</option>
                                             {reglas.map(r => (
-                                                <option key={r.id_regla} value={r.id_regla}>{r.nombre} ({r.tasa_porcentaje}%)</option>
+                                                <option key={r.id_regla} value={r.id_regla}>{r.nombre} ({r.porcentaje}%)</option>
                                             ))}
                                         </select>
                                     </div>
@@ -474,6 +487,36 @@ function CreditManagement() {
                                             onChange={(e) => setForm({ ...form, fecha_primer_pago: e.target.value })}
                                             className="w-full p-3.5 rounded-xl border-2 border-slate-200 font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors"
                                         />
+                                    </div>
+
+                                    <div className="md:col-span-2 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <input 
+                                                type="checkbox" 
+                                                id="usar_redondeo"
+                                                checked={form.usar_redondeo}
+                                                onChange={(e) => setForm({ ...form, usar_redondeo: e.target.checked })}
+                                                className="w-5 h-5 cursor-pointer accent-blue-600"
+                                            />
+                                            <label htmlFor="usar_redondeo" className="text-sm font-black text-slate-700 cursor-pointer">Activar Redondeo de Cuotas</label>
+                                        </div>
+                                        
+                                        {form.usar_redondeo && (
+                                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <label className="text-xs font-bold text-slate-500 block mb-2 uppercase tracking-tighter">Monto de Cuota Redondeado (Sugerido)</label>
+                                                <div className="relative">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Ej: 50.000" 
+                                                        value={formatPY(form.monto_cuota_redondeado)} 
+                                                        onChange={(e) => setForm({ ...form, monto_cuota_redondeado: e.target.value.replace(/\D/g, "") })} 
+                                                        className="w-full p-4 rounded-xl border-2 border-blue-200 font-black text-blue-600 outline-none focus:border-blue-500 transition-colors bg-white pr-12 text-lg" 
+                                                    />
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300 font-bold text-xs uppercase">Gs.</span>
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 mt-2 font-medium italic">* Cualquier residuo se ajustará automáticamente en la primera cuota.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

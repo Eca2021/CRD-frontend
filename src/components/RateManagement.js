@@ -6,23 +6,24 @@ import { api, endpoints } from '../config/api';
 Modal.setAppElement('#root');
 
 function RateManagement() {
-    const [tasas, setTasas] = useState([]);
+    const [reglas, setReglas] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Modal
     const [isOpen, setIsOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState({
-        nombre_tasa: '',
+        nombre: '',
+        codigo: '',
         porcentaje: '',
-        descripcion: ''
+        dias_intervalo: 7
     });
 
     const loadAll = async () => {
         setLoading(true);
         try {
-            const data = await api.get(endpoints.rates);
-            setTasas(Array.isArray(data) ? data : []);
+            const data = await api.get(endpoints.rules);
+            setReglas(Array.isArray(data) ? data : []);
         } catch (e) {
             Swal.fire('Error', e.message || 'No se pudieron cargar tasas', 'error');
         } finally {
@@ -34,16 +35,17 @@ function RateManagement() {
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ nombre_tasa: '', porcentaje: '', descripcion: '' });
+        setForm({ nombre: '', codigo: '', porcentaje: '', dias_intervalo: 7 });
         setIsOpen(true);
     };
 
     const openEdit = (t) => {
         setEditing(t);
         setForm({
-            nombre_tasa: t.nombre_tasa || '',
+            nombre: t.nombre || '',
+            codigo: t.codigo || '',
             porcentaje: t.porcentaje || '',
-            descripcion: t.descripcion || ''
+            dias_intervalo: t.dias_intervalo || 7
         });
         setIsOpen(true);
     };
@@ -60,21 +62,21 @@ function RateManagement() {
 
     const save = async (e) => {
         e?.preventDefault?.();
-        if (!form.nombre_tasa || !form.porcentaje) {
-            Swal.fire('Campos requeridos', 'Nombre y Porcentaje son obligatorios.', 'warning');
+        if (!form.nombre || !form.porcentaje || !form.codigo || !form.dias_intervalo) {
+            Swal.fire('Campos requeridos', 'Todos los campos son obligatorios.', 'warning');
             return;
         }
 
         try {
-            const payload = { ...form, porcentaje: parseFloat(form.porcentaje) };
+            const payload = { ...form, porcentaje: parseFloat(form.porcentaje), dias_intervalo: parseInt(form.dias_intervalo) };
             if (editing) {
-                await api.put(`${endpoints.rates}/${editing.id_tasa}`, payload);
+                await api.put(`${endpoints.rules}${editing.id_regla}`, payload);
             } else {
-                await api.post(endpoints.rates, payload);
+                await api.post(endpoints.rules, payload);
             }
             await Swal.fire({
                 icon: 'success',
-                title: editing ? 'Tasa actualizada' : 'Tasa creada',
+                title: editing ? 'Regla actualizada' : 'Regla creada',
                 timer: 1400,
                 showConfirmButton: false
             });
@@ -87,7 +89,7 @@ function RateManagement() {
 
     const remove = async (id) => {
         const ok = await Swal.fire({
-            title: '¿Eliminar tasa?',
+            title: '¿Eliminar regla?',
             text: 'Esta acción no se puede deshacer.',
             icon: 'warning',
             showCancelButton: true,
@@ -97,8 +99,8 @@ function RateManagement() {
         });
         if (!ok.isConfirmed) return;
         try {
-            await api.del(`${endpoints.rates}/${id}`);
-            await Swal.fire({ icon: 'success', title: 'Tasa eliminada', timer: 1200, showConfirmButton: false });
+            await api.del(`${endpoints.rules}${id}`);
+            await Swal.fire({ icon: 'success', title: 'Regla eliminada', timer: 1200, showConfirmButton: false });
             await loadAll();
         } catch (e) {
             Swal.fire('Error', e.message || 'No se pudo eliminar', 'error');
@@ -108,37 +110,39 @@ function RateManagement() {
     return (
         <div className="user-mgmt">
             <div className="um-header">
-                <h2>Gestión de Tasas de Interés</h2>
+                <h2>Gestión de Reglas de Crédito</h2>
                 <div className="um-actions">
-                    <button className="btn btn-accent" onClick={openCreate}>+ Nueva Tasa</button>
+                    <button className="btn btn-accent" onClick={openCreate}>+ Nueva Regla</button>
                 </div>
             </div>
 
             <div className="um-card">
                 {loading ? (
-                    <p className="muted">Cargando tasas...</p>
-                ) : tasas.length === 0 ? (
-                    <p className="muted">No hay tasas registradas.</p>
+                    <p className="muted">Cargando reglas...</p>
+                ) : reglas.length === 0 ? (
+                    <p className="muted">No hay reglas registradas.</p>
                 ) : (
                     <div className="table-responsive">
                         <table className="role-table">
                             <thead>
                                 <tr>
+                                    <th>Código</th>
                                     <th>Nombre</th>
                                     <th>Porcentaje (%)</th>
-                                    <th>Descripción</th>
+                                    <th>Días Intervalo</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {tasas.map(t => (
-                                    <tr key={t.id_tasa}>
-                                        <td>{t.nombre_tasa}</td>
+                                {reglas.map(t => (
+                                    <tr key={t.id_regla}>
+                                        <td>{t.codigo}</td>
+                                        <td>{t.nombre}</td>
                                         <td>{t.porcentaje}%</td>
-                                        <td>{t.descripcion}</td>
+                                        <td>{t.dias_intervalo}</td>
                                         <td>
                                             <button className="btn btn-accent btn-sm" onClick={() => openEdit(t)}>Editar</button>
-                                            <button className="btn btn-danger btn-sm" onClick={() => remove(t.id_tasa)}>Eliminar</button>
+                                            <button className="btn btn-danger btn-sm" onClick={() => remove(t.id_regla)}>Eliminar</button>
                                         </td>
                                     </tr>
                                 ))}
@@ -152,20 +156,24 @@ function RateManagement() {
                 <div className="dc-overlay">
                     <div className="dc-modal">
                         <div className="modal-header">
-                            <h3 className="modal-title">{editing ? 'Editar Tasa' : 'Nueva Tasa'}</h3>
+                            <h3 className="modal-title">{editing ? 'Editar Regla' : 'Nueva Regla'}</h3>
                         </div>
                         <form onSubmit={save} className="user-form">
                             <div className="form-row">
-                                <label>Nombre Tasa *</label>
-                                <input name="nombre_tasa" value={form.nombre_tasa} onChange={onChange} required placeholder="Ej. Tasa Anual" />
+                                <label>Código *</label>
+                                <input name="codigo" value={form.codigo} onChange={onChange} required placeholder="Ej. SEM, MENS" />
+                            </div>
+                            <div className="form-row">
+                                <label>Nombre Regla *</label>
+                                <input name="nombre" value={form.nombre} onChange={onChange} required placeholder="Ej. Semanal" />
                             </div>
                             <div className="form-row">
                                 <label>Porcentaje (%) *</label>
                                 <input name="porcentaje" type="number" step="0.01" value={form.porcentaje} onChange={onChange} required placeholder="Ej. 10.5" />
                             </div>
                             <div className="form-row">
-                                <label>Descripción</label>
-                                <textarea name="descripcion" value={form.descripcion} onChange={onChange} rows="3" />
+                                <label>Días de Intervalo *</label>
+                                <input name="dias_intervalo" type="number" step="1" value={form.dias_intervalo} onChange={onChange} required placeholder="Ej. 7" />
                             </div>
                             <div className="modal-footer">
                                 <button type="submit" className="btn btn-primary">Guardar</button>

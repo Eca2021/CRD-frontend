@@ -123,7 +123,7 @@ function AdminDashboard() {
             <FontAwesomeIcon icon={faPlusCircle} />
           </div>
           <div className="kpi-content">
-            <span className="kpi-label" style={{ color: '#64748b', fontSize: '0.875rem', fontWeight: '500' }}>Caja Total Actual</span>
+            <span className="kpi-label" style={{ color: '#64748b', fontSize: '0.875rem', fontWeight: '500' }}>Efectivo en Caja</span>
             <h3 className="kpi-value" style={{ margin: '4px 0', color: '#1e293b', fontSize: '1.25rem' }}>Gs. {formatMoney(caja_total)}</h3>
           </div>
         </div>

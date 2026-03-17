@@ -107,7 +107,7 @@ function ClientManagement() {
 
         try {
             if (editing) {
-                await api.put(`${endpoints.clients}/${editing.id_cliente}`, form);
+                await api.put(`${endpoints.clients}${editing.id_cliente}`, form);
             } else {
                 await api.post(endpoints.clients, form);
             }
@@ -137,7 +137,7 @@ function ClientManagement() {
         });
         if (!ok.isConfirmed) return;
         try {
-            await api.del(`${endpoints.clients}/${id}`);
+            await api.del(`${endpoints.clients}${id}`);
             await Swal.fire({ icon: 'success', title: 'Cliente eliminado', timer: 1200, showConfirmButton: false });
             await loadAll();
         } catch (e) {
