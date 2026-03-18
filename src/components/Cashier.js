@@ -100,7 +100,8 @@ function Cashier() {
                 selectClient(selectedClient);
             }
         } catch (e) {
-            Swal.fire('Error', e.message || 'No se pudo registrar el pago', 'error');
+            const errorMsg = (e.data && e.data.error) || e.message || 'No se pudo registrar el pago';
+            Swal.fire('Error', errorMsg, 'error');
         }
     };
 
@@ -134,7 +135,7 @@ function Cashier() {
                 
                 // Refresh data
                 if (viewingInstallment) {
-                    const data = await api.get(`${endpoints.payments}detalle/${viewingInstallment.id_detalle}`);
+                    const data = await api.get(`${endpoints.payments.base}detalle/${viewingInstallment.id_detalle}`);
                     setInstallmentPayments(data);
                 }
                 if (selectedClient) {
