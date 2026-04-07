@@ -10,10 +10,12 @@ import RoleManagement from './components/RoleManagement';
 import ClientManagement from './components/ClientManagement';
 import RateManagement from './components/RateManagement';
 import CreditManagement from './components/CreditManagement';
+import CancelledCreditManagement from './components/CancelledCreditManagement';
 import Cashier from './components/Cashier';
 import AccountingModule from './components/AccountingModule';
 import AdminDashboard from './components/AdminDashboard';
 import PaymentAudit from './components/PaymentAudit';
+import EmpresaManagement from './components/EmpresaManagement';
 
 function App() {
   const navigate = useNavigate();
@@ -25,6 +27,8 @@ function App() {
     username: '',
     token: '',
     userId: null,
+    id_empresa: null,
+    empresa_nombre: '',
     userPermissions: []
   });
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -36,15 +40,22 @@ function App() {
     const roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
     const username = localStorage.getItem('username') || '';
     const userId = parseInt(localStorage.getItem('user_id'), 10);
+    const idEmpresaRaw = localStorage.getItem('id_empresa');
+    const idEmpresa = (idEmpresaRaw === 'null' || idEmpresaRaw === 'undefined' || !idEmpresaRaw) 
+                      ? null 
+                      : parseInt(idEmpresaRaw, 10);
+    const empresaNombre = localStorage.getItem('empresa_nombre') || '';
     const permissions = JSON.parse(localStorage.getItem('user_permissions') || '[]');
 
-    if (token && roles.length > 0 && permissions.length > 0 && userId) {
+    if (token) {
       setAuthInfo({
         isAuthenticated: true,
         userRoles: roles,
         username,
         token,
         userId,
+        id_empresa: idEmpresa,
+        empresa_nombre: empresaNombre,
         userPermissions: permissions
       });
     }
@@ -75,6 +86,8 @@ function App() {
       username: '',
       token: '',
       userId: null,
+      id_empresa: null,
+      empresa_nombre: '',
       userPermissions: []
     });
     navigate('/login');
@@ -115,6 +128,7 @@ function App() {
                 username={authInfo.username}
                 userRoles={authInfo.userRoles}
                 userPermissions={authInfo.userPermissions}
+                empresaNombre={authInfo.empresa_nombre}
                 isOpen={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}
               />
@@ -145,6 +159,16 @@ function App() {
                     element={
                       <ProtectedRoute {...authInfo}>
                         <PaymentAudit />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Gestión Global de Empresas (SuperAdmin) */}
+                  <Route
+                    path="/empresas"
+                    element={
+                      <ProtectedRoute {...authInfo} requiredRoles={['SuperAdmin']}>
+                        <EmpresaManagement />
                       </ProtectedRoute>
                     }
                   />
@@ -206,6 +230,14 @@ function App() {
                     element={
                       <ProtectedRoute {...authInfo} requiredPermissions={['credito.gestionar']}>
                         <CreditManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/seguridad/creditos-anulados"
+                    element={
+                      <ProtectedRoute {...authInfo} requiredPermissions={['credito.gestionar']}>
+                        <CancelledCreditManagement />
                       </ProtectedRoute>
                     }
                   />

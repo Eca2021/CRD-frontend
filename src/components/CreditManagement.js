@@ -360,8 +360,8 @@ function CreditManagement() {
                                     </span>
                                 </td>
                                 <td className="p-5 text-center">
-                                    <button onClick={() => openDetails(c)} className="bg-slate-100 text-blue-600 p-2 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer border-none">
-                                        <svg width="18" height="18" style={{ width: '18px', height: '18px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    <button onClick={() => openDetails(c)} className="btn btn--success btn--sm" style={{ padding: '6px 15px', fontSize: '0.7rem', fontWeight: '900' }}>
+                                        Ver Detalle
                                     </button>
                                 </td>
                             </tr>
@@ -585,11 +585,12 @@ function CreditManagement() {
                                                 <th className="p-3 md:p-4 text-right">Monto Cuota</th>
                                                 <th className="p-3 md:p-4 text-right">Monto Pagado</th>
                                                 <th className="p-3 md:p-4 text-center">Estado</th>
+                                                <th className="p-3 md:p-4 text-center">Pagos</th>
                                             </tr>
                                         </thead>
                                         <tbody className="font-medium">
                                             {selectedCreditDetails.detalles && selectedCreditDetails.detalles.length > 0 ? (
-                                                selectedCreditDetails.detalles.map(d => (
+                                                [...selectedCreditDetails.detalles].sort((a,b) => a.numero_cuota - b.numero_cuota).map(d => (
                                                     <tr key={d.id_detalle} className="border-t border-slate-100 bg-white hover:bg-slate-50/50">
                                                         <td className="p-4 font-bold text-slate-400">#{d.numero_cuota}</td>
                                                         <td className="p-4 text-slate-600">{d.fecha_vencimiento}</td>
@@ -598,21 +599,21 @@ function CreditManagement() {
                                                             {d.monto_pagado > 0 ? Number(d.monto_pagado).toLocaleString() : '-'}
                                                         </td>
                                                         <td className="p-4 text-center">
-                                                            <div className="flex flex-col items-center gap-1">
-                                                                 {d.estado_cuota !== 'PAGADO' ? (
-                                                                     <span className="text-[0.7rem] font-black text-amber-500 uppercase">Pendiente</span>
-                                                                 ) : (
-                                                                     <span className="text-[0.7rem] font-black text-emerald-500 uppercase">Completado</span>
-                                                                 )}
-                                                                 {d.monto_pagado > 0 && (
-                                                                     <button 
-                                                                         onClick={() => openPaymentDetail(d)}
-                                                                         className="text-[0.6rem] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-tighter cursor-pointer border-none bg-transparent p-0"
-                                                                     >
-                                                                         detalle_pago
-                                                                     </button>
-                                                                 )}
-                                                             </div>
+                                                            {d.estado_cuota !== 'PAGADO' ? (
+                                                                <span className="text-[0.7rem] font-black text-amber-500 uppercase">Pendiente</span>
+                                                            ) : (
+                                                                <span className="text-[0.7rem] font-black text-emerald-500 uppercase">PAGADO</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            {d.monto_pagado > 0 && (
+                                                                <button 
+                                                                    onClick={() => openPaymentDetail(d)}
+                                                                    className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-full text-[0.65rem] font-black uppercase tracking-tighter cursor-pointer hover:bg-indigo-600 hover:text-white transition-all shadow-sm active:scale-95"
+                                                                >
+                                                                    Ver Pagos
+                                                                </button>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))

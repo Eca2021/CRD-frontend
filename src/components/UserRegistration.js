@@ -1,6 +1,7 @@
 // src/components/UserRegistration.js
-import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../config/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { API_BASE_URL, endpoints } from '../config/api';
+import { useAuth } from '../context/AuthContext';
 
 
 const ensureOk = async (response, fallbackMsg) => {
@@ -78,21 +79,73 @@ function useBlockBadSecurityUrls() {
 }
 
 // Asegúrate de que UserRegistration reciba el authToken como prop
-function UserRegistration({ authToken }) {
-  useBlockBadSecurityUrls();
-
+function UserRegistration({ token }) {
+  const { user } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Multi-tenant:
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState('');
+  const [availableEmpresas, setAvailableEmpresas] = useState([]);
+  const isSuperAdmin = useMemo(() => {
+    const roles = user?.roles || [];
+    const hasSuperRole = roles.some(r => {
+      const rName = typeof r === 'string' ? r : (r.nombre || r.name || '');
+      return rName.toUpperCase() === 'SUPERADMIN';
+    });
+    
+    // REGLA DE ORO: Si tiene id_empresa, NO ES SUPERADMIN GLOBAL
+    const isGlobal = (!user?.id_empresa || user?.id_empresa === 'null' || user?.id_empresa === 'undefined');
+    
+    console.log("🛡️ Seguridad UserRegistration (Contexto):", { 
+      username: user?.username, 
+      id_empresa: user?.id_empresa, 
+      hasSuperRole, 
+      isGlobal,
+      finalResult: hasSuperRole && isGlobal 
+    });
+
+    return hasSuperRole && isGlobal;
+  }, [user]);
 
   // IDs de roles:
   const [selectedRoleIds, setSelectedRoleIds] = useState([]);  // [number, ...]
   const [availableRoles, setAvailableRoles] = useState([]);  // [{ id_rol, nombre_rol }, ...]
 
+  const filteredRoles = useMemo(() => {
+    if (isSuperAdmin) return availableRoles;
+    return (availableRoles || []).filter(r => (r.nombre || '').toUpperCase() !== 'SUPERADMIN');
+  }, [availableRoles, isSuperAdmin]);
+
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loadingRoles, setLoadingRoles] = useState(true);
+  const [loadingEmpresas, setLoadingEmpresas] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      if (!isSuperAdmin) return;
+      setLoadingEmpresas(true);
+      try {
+        const resp = await fetch(endpoints.empresas, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await ensureOk(resp, 'Error al cargar empresas');
+        setAvailableEmpresas(data);
+        if (data.length > 0) setSelectedEmpresaId(data[0].id_empresa);
+      } catch (err) {
+        console.error('Error al cargar empresas:', err);
+      } finally {
+        setLoadingEmpresas(false);
+      }
+    };
+
+    if (token && isSuperAdmin) {
+      fetchCompanies();
+    }
+  }, [token, isSuperAdmin]);
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -100,7 +153,7 @@ function UserRegistration({ authToken }) {
       setError('');
       try {
         const resp = await fetch(`${API_BASE_URL}/roles`, {
-          headers: { Authorization: `Bearer ${authToken}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
         const data = await ensureOk(resp, 'Error al cargar roles');
         setAvailableRoles(Array.isArray(data) ? data : []);
@@ -113,14 +166,14 @@ function UserRegistration({ authToken }) {
       }
     };
 
-    if (authToken) {
+    if (token) {
       fetchRoles();
     } else {
       setAvailableRoles([]);
       setLoadingRoles(false);
       setError('No hay token de autenticación para cargar los roles.');
     }
-  }, [authToken]);
+  }, [token]);
 
   const handleRoleChange = (event) => {
     const roleId = parseInt(event.target.value, 10);
@@ -150,7 +203,8 @@ function UserRegistration({ authToken }) {
       email: email,
       password: password,
       estado: 'ACTIVO',
-      roles: selectedRoleIds
+      roles: selectedRoleIds,
+      id_empresa: isSuperAdmin ? selectedEmpresaId : undefined
     };
 
     try {
@@ -158,7 +212,7 @@ function UserRegistration({ authToken }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(userData),
       });
@@ -189,6 +243,27 @@ function UserRegistration({ authToken }) {
         {error && <p className="text-center text-red-600 mb-4">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isSuperAdmin && (
+            <div>
+              <label htmlFor="id_empresa" className="block text-sm font-medium text-gray-700">
+                Seleccionar Empresa:
+              </label>
+              <select
+                id="id_empresa"
+                value={selectedEmpresaId}
+                onChange={(e) => setSelectedEmpresaId(e.target.value)}
+                disabled={saving || loadingEmpresas}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                {availableEmpresas.map(emp => (
+                  <option key={emp.id_empresa} value={emp.id_empresa}>
+                    {emp.nombre} ({emp.ruc})
+                  </option>
+                ))}
+              </select>
+              {loadingEmpresas && <p className="text-xs text-blue-500 mt-1">Cargando empresas...</p>}
+            </div>
+          )}
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
               Usuario:
@@ -248,8 +323,9 @@ function UserRegistration({ authToken }) {
               <p className="text-red-500 text-sm">{error}</p>
             ) : availableRoles.length > 0 ? (
               <div className="flex flex-wrap gap-4 mt-2">
-                {availableRoles.map((role) => (
-                  <div key={role.id_rol} className="flex items-center">
+                {filteredRoles
+                  .map((role) => (
+                    <div key={role.id_rol} className="flex items-center">
                     <input
                       type="checkbox"
                       id={`role-${role.id_rol}`}

@@ -10,6 +10,7 @@ function SidebarMenu({
   username,
   onLogout,
   userId,
+  empresaNombre,
   apiBaseUrl = '/api',
   authToken,
   isOpen, // Prop for mobile visibility
@@ -69,7 +70,14 @@ function SidebarMenu({
       {/* Brand/Logo Section */}
       <div className="sidebar-brand">
         <img src={menuIcon} alt="Logo" className="sidebar-logo-img" />
-        <h3 className="sidebar-brand-text">Sistema de Crédito</h3>
+        <div className="brand-info">
+          <h3 className="sidebar-brand-text">Sistema de Crédito</h3>
+          {empresaNombre ? (
+            <span className="company-tag">{empresaNombre}</span>
+          ) : hasRole('SuperAdmin') ? (
+            <span className="company-tag" style={{ background: '#10b981' }}>ACCESO GLOBAL</span>
+          ) : null}
+        </div>
       </div>
 
       {/* Profile Section */}
@@ -98,6 +106,21 @@ function SidebarMenu({
           </ul>
         </div>
 
+        {/* GRUPO: GLOBAL (Solo SuperAdmin) */}
+        {hasRole('SuperAdmin') && (
+          <div className="menu-group">
+            <h5 className="group-title">Global</h5>
+            <ul className="menu-list">
+              <li className={`menu-item ${isActive('/empresas') ? 'active' : ''}`}>
+                <a href="#" className="menu-link" onClick={(e) => { e.preventDefault(); handleMenuItemClick('/empresas'); }}>
+                  <i className="fas fa-building menu-icon"></i>
+                  <span>Gestión de Empresas</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        )}
+
         {/* GRUPO: GESTIÓN */}
         <div className="menu-group">
           <h5 className="group-title">Gestión</h5>
@@ -118,6 +141,12 @@ function SidebarMenu({
               <a href="#" className="menu-link" onClick={(e) => { e.preventDefault(); handleMenuItemClick('/seguridad/creditos'); }}>
                 <i className="fas fa-money-bill-wave menu-icon"></i>
                 <span>Créditos</span>
+              </a>
+            </li>
+            <li className={`menu-item ${isActive('/seguridad/creditos-anulados') ? 'active' : ''}`}>
+              <a href="#" className="menu-link" onClick={(e) => { e.preventDefault(); handleMenuItemClick('/seguridad/creditos-anulados'); }}>
+                <i className="fas fa-archive menu-icon"></i>
+                <span>Créditos Anulados</span>
               </a>
             </li>
             <li className={`menu-item ${isActive('/contabilidad') ? 'active' : ''}`}>
@@ -149,7 +178,7 @@ function SidebarMenu({
         </div>
 
         {/* GRUPO: ADMINISTRACIÓN */}
-        {hasRole('Admin') && (
+        {(hasRole('Admin') || hasRole('SuperAdmin')) && (
           <div className="menu-group">
             <h5 className="group-title">Administración</h5>
             <ul className="menu-list">

@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import loginBg from '../assets/images/login.jpeg';
 import logoImg from '../assets/images/icono.jpeg';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 // pequeña ayuda para decodificar un JWT si lo necesitas como fallback
 function decodeJwt(token) {
@@ -72,24 +74,25 @@ function Login({ setAuthInfo }) {
       }
 
       const data = await response.json();
-      // Preferimos el user_id del backend; si no viene, lo sacamos del token
-      const payload = decodeJwt(data.access_token || '');
-      const userId = data.user_id ?? payload.sub ?? payload.identity ?? null;
-
+      
       // Guarda tokens y datos de sesión
       localStorage.setItem('access_token', data.access_token);
       if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
       localStorage.setItem('user_roles', JSON.stringify(data.user_roles || []));
       localStorage.setItem('user_permissions', JSON.stringify(data.user_permissions || []));
-      if (data.username) localStorage.setItem('username', data.username);
-      if (userId != null) localStorage.setItem('user_id', String(userId));
+      localStorage.setItem('username', data.username || username);
+      localStorage.setItem('user_id', String(data.user_id));
+      localStorage.setItem('id_empresa', String(data.id_empresa));
+      localStorage.setItem('empresa_nombre', data.empresa_nombre || '');
 
       // Actualiza el estado global
       setAuthInfo({
         isAuthenticated: true,
         token: data.access_token,
         username: data.username || username,
-        userId: userId,
+        userId: data.user_id,
+        id_empresa: data.id_empresa,
+        empresa_nombre: data.empresa_nombre,
         userRoles: data.user_roles || [],
         userPermissions: data.user_permissions || [],
       });
@@ -97,8 +100,8 @@ function Login({ setAuthInfo }) {
       Swal.fire({
         icon: 'success',
         title: '¡Bienvenido!',
-        text: 'Inicio de sesión exitoso.',
-        timer: 900,
+        text: `Has ingresado a ${data.empresa_nombre || 'el sistema'}.`,
+        timer: 1500,
         showConfirmButton: false,
         position: 'top',
       });
@@ -164,6 +167,27 @@ function Login({ setAuthInfo }) {
                   autoComplete="current-password"
                   placeholder="Ingresa tu contraseña"
                 />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '15px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    padding: '0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    zIndex: 10
+                  }}
+                >
+                  <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+                </button>
               </div>
             </div>
 

@@ -3,6 +3,11 @@ import Modal from 'react-modal';
 import Swal from 'sweetalert2';
 import { api, endpoints } from '../config/api';
 
+// Imports de estilos para asegurar estética premium y colores correctos
+import '../App.css';
+import '../styles/buttons.css';
+import './UserManagement.css'; // Reutilizamos estilos de tablas y contenedores
+
 Modal.setAppElement('#root');
 
 function ClientManagement() {
@@ -163,7 +168,7 @@ function ClientManagement() {
             <div className="um-header">
                 <h2>Gestión de Clientes</h2>
                 <div className="um-actions">
-                    <button className="btn btn-accent" onClick={openCreate}>+ Nuevo cliente</button>
+                    <button className="btn btn--primary" onClick={openCreate}>+ Nuevo cliente</button>
                 </div>
             </div>
 
@@ -205,11 +210,15 @@ function ClientManagement() {
                                         <td data-label="Dirección">{String(c.direccion || '')}</td>
                                         <td data-label="Acciones">
                                             <div className="actions">
-                                                <button className="btn btn-secondary btn-sm" onClick={() => openCredits(c)} title="Ver Créditos">
+                                                <button className="btn btn--success btn--sm" onClick={() => openCredits(c)} title="Ver Créditos">
                                                     <i className="fas fa-money-bill-wave"></i> Créditos
                                                 </button>
-                                                <button className="btn btn-accent btn-sm" onClick={() => openEdit(c)}>Editar</button>
-                                                <button className="btn btn-danger btn-sm" onClick={() => remove(c.id_cliente)}>Eliminar</button>
+                                                <button className="btn btn--secondary btn--sm" onClick={() => openEdit(c)}>
+                                                    <i className="fas fa-edit"></i> Editar
+                                                </button>
+                                                <button className="btn btn--danger btn--sm" onClick={() => remove(c.id_cliente)}>
+                                                    <i className="fas fa-trash"></i> Eliminar
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -280,7 +289,7 @@ function ClientManagement() {
                                 <p>Este cliente no tiene créditos registrados.</p>
                             ) : (
                                 <div className="table-responsive">
-                                    <table className="role-table table"> {/* Added 'table' class */}
+                                    <table className="role-table table">
                                         <thead>
                                             <tr>
                                                 <th>ID</th>
@@ -321,7 +330,7 @@ function ClientManagement() {
                                                         <tr>
                                                             <td colSpan="8" style={{ background: '#f8fafc', padding: '10px' }}>
                                                                 <h5>Detalle de Cuotas</h5>
-                                                                <table className="role-table table" style={{ fontSize: '0.9em' }}> {/* Added 'table' class */}
+                                                                <table className="role-table table" style={{ fontSize: '0.9em' }}>
                                                                     <thead>
                                                                         <tr>
                                                                             <th>#</th>

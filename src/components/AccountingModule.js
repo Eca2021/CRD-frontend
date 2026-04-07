@@ -10,7 +10,14 @@ import { faCashRegister, faFileInvoiceDollar, faChartLine, faPlusCircle, faSearc
 function AccountingModule() {
     const [dashboardData, setDashboardData] = useState(null);
     const [asientos, setAsientos] = useState([]);
+    const [cuentas, setCuentas] = useState([]);
+    const [glosas, setGlosas] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Paginación
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // Filtros
     const [filterDateStart, setFilterDateStart] = useState('');
@@ -30,23 +37,44 @@ function AccountingModule() {
         }
     };
 
-    const loadAsientos = async () => {
+    const loadAsientos = async (page = null) => {
         try {
-            let url = endpoints.accounting.entries + '?';
+            const targetPage = page || currentPage;
+            let url = endpoints.accounting.entries + `?page=${targetPage}&per_page=${itemsPerPage}&`;
             if (filterDateStart) url += `fecha_inicio=${filterDateStart}&`;
             if (filterDateEnd) url += `fecha_fin=${filterDateEnd}&`;
             if (filterGlosa) url += `glosa=${filterGlosa}&`;
 
             const data = await api.get(url);
-            setAsientos(Array.isArray(data) ? data : []);
+            setAsientos(Array.isArray(data.items) ? data.items : []);
+            setTotalPages(data.pages || 1);
+            setCurrentPage(data.page || 1);
         } catch (e) {
             console.error("Error loading asientos", e);
+        }
+    };
+    
+    const loadCuentas = async () => {
+        try {
+            const data = await api.get(endpoints.accounting.cuentas);
+            setCuentas(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error("Error loading cuentas", e);
+        }
+    };
+
+    const loadGlosas = async () => {
+        try {
+            const data = await api.get(endpoints.accounting.glosas);
+            setGlosas(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error("Error loading glosas", e);
         }
     };
 
     const refreshAll = async () => {
         setLoading(true);
-        await Promise.all([loadDashboard(), loadAsientos()]);
+        await Promise.all([loadDashboard(), loadAsientos(), loadCuentas(), loadGlosas()]);
         setLoading(false);
     };
 
@@ -56,7 +84,8 @@ function AccountingModule() {
 
     const handleSearch = (e) => {
         e.preventDefault();
-        loadAsientos();
+        setCurrentPage(1);
+        loadAsientos(1);
     };
 
     const handleViewDetails = (asiento) => {
@@ -78,8 +107,14 @@ function AccountingModule() {
                     <option value="EGRESO">EGRESO de Caja</option>
                 </select>
                 <input id="swal-monto" type="number" step="0.01" class="swal2-input" placeholder="Monto">
-                <input id="swal-glosa" type="text" class="swal2-input" placeholder="Descripción (Glosa)">
-                <input id="swal-cuenta" type="text" class="swal2-input" placeholder="Cuenta Contrapartida (ej: Luz, Capital)">
+                <input id="swal-glosa" list="glosas-list" type="text" class="swal2-input" placeholder="Descripción (Glosa)">
+                <datalist id="glosas-list">
+                    ${glosas.map(g => `<option value="${g}">`).join('')}
+                </datalist>
+                <input id="swal-cuenta" list="cuentas-list" type="text" class="swal2-input" placeholder="Cuenta Contrapartida (ej: Luz, Capital)">
+                <datalist id="cuentas-list">
+                    ${cuentas.map(c => `<option value="${c}">`).join('')}
+                </datalist>
             `,
             focusConfirm: false,
             showCancelButton: true,
@@ -252,6 +287,47 @@ function AccountingModule() {
                         </tbody>
                     </table>
                     {asientos.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>No hay movimientos registrados en este período.</p>}
+                </div>
+
+                {/* CONTROLES DE PAGINACIÓN */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '15px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', borderRadius: '0 0 12px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 'bold' }}>Mostrar:</span>
+                        <select 
+                            value={itemsPerPage} 
+                            onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); loadAsientos(1); }}
+                            style={{ padding: '5px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 'bold', outline: 'none', cursor: 'pointer' }}
+                        >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                        </select>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>por página</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <button 
+                            disabled={currentPage <= 1}
+                            onClick={() => { const p = currentPage - 1; setCurrentPage(p); loadAsientos(p); }}
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 12px', fontSize: '0.8rem', opacity: currentPage <= 1 ? 0.5 : 1 }}
+                        >
+                            Anterior
+                        </button>
+                        
+                        <div style={{ fontSize: '0.85rem', fontWeight: 'black', color: '#1e293b' }}>
+                            Página <span style={{ color: '#3b82f6' }}>{currentPage}</span> de {totalPages}
+                        </div>
+
+                        <button 
+                            disabled={currentPage >= totalPages}
+                            onClick={() => { const p = currentPage + 1; setCurrentPage(p); loadAsientos(p); }}
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 12px', fontSize: '0.8rem', opacity: currentPage >= totalPages ? 0.5 : 1 }}
+                        >
+                            Siguiente
+                        </button>
+                    </div>
                 </div>
             </div>
 

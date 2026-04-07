@@ -12,6 +12,11 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('access_token');
     const username = localStorage.getItem('username');
     const userId = localStorage.getItem('user_id');
+    const idEmpresaRaw = localStorage.getItem('id_empresa');
+    const idEmpresa = (idEmpresaRaw === 'null' || idEmpresaRaw === 'undefined' || !idEmpresaRaw) 
+                      ? null 
+                      : parseInt(idEmpresaRaw, 10);
+    const empresaNombre = localStorage.getItem('empresa_nombre');
     const roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
     const permissions = JSON.parse(localStorage.getItem('user_permissions') || '[]');
 
@@ -20,8 +25,10 @@ export function AuthProvider({ children }) {
         token,
         username: username || '',
         userId: userId ? parseInt(userId, 10) : null,
-        roles,
-        permissions,
+        id_empresa: idEmpresa,
+        empresa_nombre: empresaNombre || '',
+        roles: roles,
+        permissions: permissions,
       });
     }
   }, []);
@@ -37,34 +44,35 @@ export function AuthProvider({ children }) {
     if (!res.ok) return false;
 
     const data = await res.json();
-    // Ajusta estos campos a lo que devuelve tu backend:
-    // data.accessToken, data.username, data.userId, data.roles, data.permissions
-    //localStorage.setItem('access_token', data.accessToken);
     const accessToken = data.access_token ?? data.accessToken;
+    
     localStorage.setItem('access_token', accessToken);
-
     localStorage.setItem('username', data.username);
-    localStorage.setItem('user_id', String(data.userId));
-    localStorage.setItem('user_roles', JSON.stringify(data.roles || []));
-    localStorage.setItem('user_permissions', JSON.stringify(data.permissions || []));
+    localStorage.setItem('user_id', String(data.user_id));
+    if (data.id_empresa !== null && data.id_empresa !== undefined) {
+      localStorage.setItem('id_empresa', String(data.id_empresa));
+    } else {
+      localStorage.setItem('id_empresa', 'null');
+    }
+    localStorage.setItem('empresa_nombre', data.empresa_nombre || '');
+    localStorage.setItem('user_roles', JSON.stringify(data.user_roles || []));
+    localStorage.setItem('user_permissions', JSON.stringify(data.user_permissions || []));
 
     setUser({
-      token: data.accessToken,
+      token: accessToken,
       username: data.username,
-      userId: data.userId,
-      roles: data.roles || [],
-      permissions: data.permissions || [],
+      userId: data.user_id,
+      id_empresa: data.id_empresa,
+      empresa_nombre: data.empresa_nombre,
+      roles: data.user_roles || [],
+      permissions: data.user_permissions || [],
     });
 
     return true;
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('username');
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('user_roles');
-    localStorage.removeItem('user_permissions');
+    localStorage.clear(); // Limpieza total de residuos
     setUser(null);
   };
 

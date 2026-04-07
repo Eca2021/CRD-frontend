@@ -3,14 +3,46 @@ import Modal from 'react-modal';
 import Swal from 'sweetalert2';
 import './UserManagement.css';
 import { api, endpoints } from '../config/api';
+import { useAuth } from '../context/AuthContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEdit, faTrash, faUserShield, faBuilding, faSearch, faFilter, faUserPlus, faHistory } from '@fortawesome/free-solid-svg-icons';
 
 Modal.setAppElement('#root');
 
 function UserManagement() {
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
+  const [availableEmpresas, setAvailableEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingEmpresas, setLoadingEmpresas] = useState(false);
   const [search, setSearch] = useState('');
+  const [empresaFilter, setEmpresaFilter] = useState(''); // Nuevo estado filtro empresa
+  const isSuperAdmin = useMemo(() => {
+    const roles = user?.roles || [];
+    const hasSuperRole = roles.some(r => {
+      const rName = typeof r === 'string' ? r : (r.nombre || r.name || '');
+      return rName.toUpperCase() === 'SUPERADMIN';
+    });
+    
+    // REGLA DE ORO: Si tiene id_empresa, NO ES SUPERADMIN GLOBAL
+    const isGlobal = (!user?.id_empresa || user?.id_empresa === 'null' || user?.id_empresa === 'undefined');
+    
+    console.log("🛡️ Seguridad UserManagement (Contexto):", { 
+      username: user?.username, 
+      id_empresa: user?.id_empresa, 
+      hasSuperRole, 
+      isGlobal,
+      finalResult: hasSuperRole && isGlobal 
+    });
+
+    return hasSuperRole && isGlobal;
+  }, [user]);
+
+  const filteredRolesForForm = useMemo(() => {
+    if (isSuperAdmin) return availableRoles;
+    return (availableRoles || []).filter(r => (r.nombre || '').toUpperCase() !== 'SUPERADMIN');
+  }, [availableRoles, isSuperAdmin]);
 
   // Modal CRUD usuario
   const [isOpen, setIsOpen] = useState(false);
@@ -22,6 +54,7 @@ function UserManagement() {
     password: '',
     estado: 'ACTIVO',
     roles: [], // ids
+    id_empresa: '',
   });
 
   // Modal "Ver eliminados"
@@ -46,12 +79,28 @@ function UserManagement() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [rs, us] = await Promise.all([
-        api.get(endpoints.roles),
-        api.get(endpoints.users),
-      ]);
+      const rs = await api.get(endpoints.roles);
       setAvailableRoles(Array.isArray(rs) ? rs : []);
+      
+      // Cargar usuarios con filtro si existe
+      let userUrl = endpoints.users;
+      if (empresaFilter) userUrl += `?id_empresa=${empresaFilter}`;
+      
+      const us = await api.get(userUrl);
       setUsers(normalizeUsers(Array.isArray(us) ? us : []));
+
+      // Cargar empresas si es SuperAdmin
+      if (isSuperAdmin) {
+        setLoadingEmpresas(true);
+        try {
+          const emps = await api.get(endpoints.empresas);
+          setAvailableEmpresas(Array.isArray(emps) ? emps : []);
+        } catch (err) {
+          console.error("Error al cargar empresas:", err);
+        } finally {
+          setLoadingEmpresas(false);
+        }
+      }
     } catch (e) {
       Swal.fire('Error', e.message || 'No se pudieron cargar usuarios/roles', 'error');
     } finally {
@@ -59,7 +108,7 @@ function UserManagement() {
     }
   };
 
-  useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [empresaFilter]);
   useEffect(() => { setUsers(prev => normalizeUsers(prev)); /* eslint-disable-next-line */ }, [availableRoles]);
 
   // ------- Crear / Editar -------
@@ -72,6 +121,7 @@ function UserManagement() {
       password: '',
       estado: 'ACTIVO',
       roles: [],
+      id_empresa: availableEmpresas.length > 0 ? availableEmpresas[0].id_empresa : '',
     });
     setIsOpen(true);
   };
@@ -85,6 +135,7 @@ function UserManagement() {
       password: '',
       estado: u.estado || 'ACTIVO',
       roles: (u.roles || []).map(r => r.id_rol),
+      id_empresa: u.id_empresa || '',
     });
     setIsOpen(true);
   };
@@ -99,6 +150,7 @@ function UserManagement() {
       password: '',
       estado: 'ACTIVO',
       roles: [],
+      id_empresa: '',
     });
   };
 
@@ -255,14 +307,35 @@ function UserManagement() {
       </div>
 
       <div className="um-card">
-        <div className="search-bar">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Buscar usuarios por nombre, email o usuario…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="search-bar-premium">
+          <div className="search-input-wrapper">
+            <FontAwesomeIcon icon={faSearch} className="search-icon" />
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Buscar por nombre, email o usuario…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {isSuperAdmin && (
+            <div className="filter-wrapper">
+              <FontAwesomeIcon icon={faBuilding} className="filter-icon" />
+              <select
+                className="filter-select"
+                value={empresaFilter}
+                onChange={(e) => setEmpresaFilter(e.target.value)}
+              >
+                <option value="">Todas las empresas</option>
+                {availableEmpresas.map(emp => (
+                  <option key={emp.id_empresa} value={emp.id_empresa}>
+                    {emp.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -274,13 +347,12 @@ function UserManagement() {
             <table className="role-table table">
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>Usuario</th>
-                  <th>Nombre</th>
                   <th>Email</th>
+                  {isSuperAdmin && <th>Empresa</th>}
                   <th>Estado</th>
                   <th>Roles</th>
-                  <th style={{ width: 180 }}>Acciones</th>
+                  <th style={{ width: 120, textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,36 +364,55 @@ function UserManagement() {
                   }
                   return (
                     <tr key={user.id_usuario} className={inactive ? 'inactive-user-row' : ''}>
-                      <td data-label="ID">{user.id_usuario}</td>
-                      <td data-label="Usuario">{user.nombre_usuario}</td>
-                      <td data-label="Nombre">{user.nombre}</td>
-                      <td data-label="Email">{user.email}</td>
+                      <td data-label="Usuario">
+                        <div className="user-profile-cell">
+                          <div className={`user-avatar color-${(user.id_usuario % 5) + 1}`}>
+                            {(user.nombre || user.nombre_usuario || "?")[0].toUpperCase()}
+                          </div>
+                          <div className="user-info">
+                            <span className="user-name-main">{user.nombre || user.nombre_usuario}</span>
+                            <span className="user-handle">@{user.nombre_usuario}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td data-label="Email" className="email-cell">{user.email || '—'}</td>
+                      
+                      {isSuperAdmin && (
+                        <td data-label="Empresa">
+                          <span className="company-tag">
+                            <FontAwesomeIcon icon={faBuilding} style={{marginRight: '5px', opacity: 0.7}} />
+                            {user.empresa_nombre || 'N/A'}
+                          </span>
+                        </td>
+                      )}
+
                       <td data-label="Estado">
-                        <span className={`badge ${inactive ? 'badge-gray' : 'badge-green'}`}>
-                          {user.estado || '-'}
+                        <span className={`badge-pill ${inactive ? 'pill-gray' : 'pill-success'}`}>
+                          {user.estado || 'ACTIVO'}
                         </span>
                       </td>
                       <td data-label="Roles">
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          {(user.roles || []).length > 0 ? (
-                            (user.roles || []).map((r, idx) => {
-                              const rName = String(typeof r === 'string' ? r : (r.nombre || r.name || 'Rol'));
-                              const rKey = (typeof r === 'object' && r.id_rol) ? r.id_rol : idx;
-                              return (
-                                <span key={rKey} className="badge badge-gray" style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
-                                  {rName}
-                                </span>
-                              );
-                            })
-                          ) : (
-                            <span className="muted" style={{ fontStyle: 'italic' }}>Sin roles</span>
-                          )}
+                        <div className="roles-pill-container">
+                          {(user.roles || []).map((r, idx) => {
+                            const rName = String(typeof r === 'string' ? r : (r.nombre || r.name || 'Rol'));
+                            const isSuper = rName.toUpperCase() === 'SUPERADMIN';
+                            return (
+                              <span key={idx} className={`badge-pill ${isSuper ? 'pill-purple' : 'pill-info'}`}>
+                                {isSuper && <FontAwesomeIcon icon={faUserShield} style={{marginRight: '4px'}} />}
+                                {rName}
+                              </span>
+                            );
+                          })}
                         </div>
                       </td>
                       <td data-label="Acciones">
-                        <div className="actions">
-                          <button className="btn btn-accent btn-sm" onClick={() => openEdit(user)}>Editar</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => remove(user.id_usuario)}>Eliminar</button>
+                        <div className="actions-premium">
+                          <button className="action-btn edit-btn" onClick={() => openEdit(user)} title="Editar">
+                            <FontAwesomeIcon icon={faEdit} />
+                          </button>
+                          <button className="action-btn delete-btn" onClick={() => remove(user.id_usuario)} title="Eliminar">
+                            <FontAwesomeIcon icon={faTrash} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -343,6 +434,26 @@ function UserManagement() {
             </div>
 
             <form onSubmit={save} className="user-form">
+              {isSuperAdmin && (
+                <div className="form-row">
+                  <label>Asignar a Empresa:</label>
+                  <select
+                    name="id_empresa"
+                    value={form.id_empresa}
+                    onChange={onChange}
+                    required
+                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                  >
+                    <option value="">-- Seleccione una empresa --</option>
+                    {availableEmpresas.map(emp => (
+                      <option key={emp.id_empresa} value={emp.id_empresa}>
+                        {emp.nombre} ({emp.ruc})
+                      </option>
+                    ))}
+                  </select>
+                  {loadingEmpresas && <small>Cargando empresas...</small>}
+                </div>
+              )}
               <div className="form-row">
                 <label>Nombre de usuario</label>
                 <input
@@ -389,18 +500,18 @@ function UserManagement() {
               <div className="form-row">
                 <label>Roles</label>
                 <div className="roles-grid">
-                  {(availableRoles || []).map(r => (
-                    <label key={r.id_rol} className="role-item">
-                      <input
-                        type="checkbox"
-                        name="roles"
-                        value={r.id_rol}
-                        checked={form.roles.includes(r.id_rol)}
-                        onChange={onChange}
-                      />
-                      <span>{r.nombre}</span>
-                    </label>
-                  ))}
+                  {filteredRolesForForm.map(r => (
+                      <label key={r.id_rol} className="role-item">
+                        <input
+                          type="checkbox"
+                          name="roles"
+                          value={r.id_rol}
+                          checked={form.roles.includes(r.id_rol)}
+                          onChange={onChange}
+                        />
+                        <span>{r.nombre}</span>
+                      </label>
+                    ))}
                 </div>
               </div>
 

@@ -3,6 +3,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { API_BASE_URL } from '../config/api';
 import Modal from 'react-modal';
 import Swal from 'sweetalert2';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faUserShield, faBriefcase, faTag, faUsersCog, 
+  faEdit, faTrash, faSearch, faPlus, faEye, faLock 
+} from '@fortawesome/free-solid-svg-icons';
 import './RoleManagement.css';
 
 Modal.setAppElement('#root');
@@ -31,6 +36,7 @@ export default function RoleManagement({ token }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [search, setSearch] = useState(''); // Nuevo buscador
 
   // Modales
   const [roleModalOpen, setRoleModalOpen] = useState(false);
@@ -256,6 +262,24 @@ export default function RoleManagement({ token }) {
     );
   }, [availablePermisos, permSearch]);
 
+  // ===== Helpers UI =====
+  const getRoleIcon = (name) => {
+    const n = (name || '').toUpperCase();
+    if (n.includes('ADMIN')) return faUserShield;
+    if (n.includes('GERENTE')) return faBriefcase;
+    if (n.includes('VENDEDOR')) return faTag;
+    return faUsersCog;
+  };
+
+  const filteredRoles = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return roles;
+    return roles.filter(r => 
+      (r.nombre || '').toLowerCase().includes(q) || 
+      (r.descripcion || '').toLowerCase().includes(q)
+    );
+  }, [roles, search]);
+
   const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -270,21 +294,29 @@ export default function RoleManagement({ token }) {
     <div className="role-mgmt">
       <div className="rm-header">
         <h2>Gestión de Roles</h2>
-        <div className="rm-actions">
-          {/* 👈 Ver Permisos a la izquierda del +Nuevo Permiso */}
-          <button className="btn btn-accent" onClick={openPermListModal}>
-            Ver Permisos
+        <div className="rm-actions-premium">
+          <button className="btn-premium action-btn-link" onClick={openPermListModal}>
+            <FontAwesomeIcon icon={faEye} /> Ver Catálogo de Permisos
           </button>
-          <button className="btn btn-accent" onClick={openPermModal}>
-            + Nuevo Permiso
-          </button>
-          <button className="btn btn-accent" onClick={openCreateRoleModal}>
-            + Nuevo Rol
+          <button className="btn-premium primary" onClick={openCreateRoleModal}>
+            <FontAwesomeIcon icon={faPlus} /> Nuevo Rol
           </button>
         </div>
       </div>
 
-      <div className="rm-card">
+      <div className="rm-card-premium">
+        <div className="search-bar-premium">
+          <div className="search-input-wrapper">
+            <FontAwesomeIcon icon={faSearch} className="search-icon" />
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Buscar roles por nombre o descripción…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
         {loading ? (
           <p className="muted">Cargando roles…</p>
         ) : roles.length === 0 ? (
@@ -294,44 +326,57 @@ export default function RoleManagement({ token }) {
             <table className="role-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Rol</th>
+                  <th>Rol / Perfil</th>
                   <th>Descripción</th>
-                  <th>Permisos</th>
-                  <th style={{ width: 180 }}>Acciones</th>
+                  <th>Permisos Asignados</th>
+                  <th style={{ width: 120, textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {roles.map((r) => (
+                {filteredRoles.map((r) => (
                   <tr key={r.id_rol}>
-                    <td>{r.id_rol}</td>
-                    <td>{r.nombre_rol}</td>
-                    <td>{r.descripcion || '-'}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxHeight: '60px', overflow: 'hidden' }}>
+                      <div className="role-profile-cell">
+                        <div className={`role-avatar color-${(r.id_rol % 5) + 1}`}>
+                          <FontAwesomeIcon icon={getRoleIcon(r.nombre)} />
+                        </div>
+                        <div className="role-info">
+                          <span className="role-name-main">{r.nombre}</span>
+                          <span className="role-id-tag">ID: #{r.id_rol}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="desc-cell">{r.descripcion || '—'}</td>
+                    <td>
+                      <div className="perms-pill-container">
                         {Array.isArray(r.permisos) && r.permisos.length > 0 ? (
-                          r.permisos.map((p) => (
-                            <span key={p.id_permiso} className="badge badge-gray" style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
-                              {String(p.nombre_permiso || 'Permiso')}
+                          r.permisos.slice(0, 5).map((p) => (
+                            <span key={p.id_permiso} className="perm-pill">
+                              {p.nombre_permiso || p.nombre || 'Permiso'}
                             </span>
                           ))
                         ) : (
-                          <span className="muted" style={{ fontStyle: 'italic' }}>Ninguno</span>
+                          <span className="muted-text">Sin permisos</span>
+                        )}
+                        {Array.isArray(r.permisos) && r.permisos.length > 5 && (
+                          <span className="perm-pill-more">+{r.permisos.length - 5} más</span>
                         )}
                       </div>
                     </td>
                     <td>
-                      <button className="btn btn-accent btn-sm" onClick={() => openEditRoleModal(r)}>
-                        Editar
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => deleteRole(r.id_rol)}
-                        disabled={deletingId === r.id_rol}
-                        title={deletingId === r.id_rol ? 'Eliminando…' : 'Eliminar'}
-                      >
-                        {deletingId === r.id_rol ? 'Eliminando…' : 'Eliminar'}
-                      </button>
+                      <div className="actions-premium">
+                        <button className="action-btn edit-btn" onClick={() => openEditRoleModal(r)} title="Editar Rol">
+                          <FontAwesomeIcon icon={faEdit} />
+                        </button>
+                        <button
+                          className="action-btn delete-btn"
+                          onClick={() => deleteRole(r.id_rol)}
+                          disabled={deletingId === r.id_rol}
+                          title="Eliminar Rol"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -354,61 +399,76 @@ export default function RoleManagement({ token }) {
         </div>
 
         <form onSubmit={saveRole} className="role-form">
-          <div className="form-row">
-            <label>Nombre del Rol</label>
-            <input
-              name="nombre_rol"
-              value={roleForm.nombre_rol}
-              onChange={onRoleChange}
-              placeholder="Ej.: Cajero, Admin…"
-              autoFocus
-              disabled={saving}
-            />
-          </div>
-
-          <div className="form-row">
-            <label>Descripción</label>
-            <textarea
-              name="descripcion"
-              rows={3}
-              value={roleForm.descripcion}
-              onChange={onRoleChange}
-              placeholder="Opcional"
-              disabled={saving}
-            />
-          </div>
-
-          <div className="form-row">
-            <label>Permisos</label>
-            <div className="permisos-grid">
-              {availablePermisos.map((perm) => (
-                <label key={perm.id_permiso} className="perm-item">
-                  <input
-                    type="checkbox"
-                    name="permisos"
-                    value={perm.id_permiso}
-                    checked={roleForm.permisos.includes(perm.id_permiso)}
-                    onChange={onRoleChange}
-                    disabled={saving}
-                  />
-                  <span>{perm.nombre_permiso}</span>
-                  <small className="code">{perm.codigo}</small>
-                </label>
-              ))}
+          <div className="modal-body-premium">
+            <div className="form-row">
+              <label>Nombre del Rol</label>
+              <div className="input-with-icon">
+                <FontAwesomeIcon icon={faUsersCog} className="field-icon" />
+                <input
+                  name="nombre_rol"
+                  value={roleForm.nombre_rol}
+                  onChange={onRoleChange}
+                  placeholder="Ej.: Cajero, Administrador…"
+                  autoFocus
+                  disabled={saving}
+                />
+              </div>
             </div>
-            <div className="inline-actions">
-              <button type="button" className="btn btn-accent btn-sm" onClick={openPermModal}>
-                + Nuevo Permiso
-              </button>
+
+            <div className="form-row">
+              <label>Descripción del Perfil</label>
+              <textarea
+                name="descripcion"
+                rows={2}
+                value={roleForm.descripcion}
+                onChange={onRoleChange}
+                placeholder="Describe brevemente las responsabilidades de este rol…"
+                disabled={saving}
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="label-with-action">
+                <label>Permisos de Acceso</label>
+                <button type="button" className="btn-text-action" onClick={openPermModal}>
+                  <FontAwesomeIcon icon={faPlus} /> Nuevo Permiso
+                </button>
+              </div>
+              
+              <div className="permisos-grid-premium">
+                {availablePermisos.map((perm) => {
+                  const isChecked = roleForm.permisos.includes(perm.id_permiso);
+                  return (
+                    <label key={perm.id_permiso} className={`perm-card ${isChecked ? 'active' : ''}`}>
+                      <div className="perm-checkbox">
+                        <input
+                          type="checkbox"
+                          name="permisos"
+                          value={perm.id_permiso}
+                          checked={isChecked}
+                          onChange={onRoleChange}
+                          disabled={saving}
+                        />
+                        <div className="custom-check"></div>
+                      </div>
+                      <div className="perm-content">
+                        <span className="perm-name">{perm.nombre_permiso}</span>
+                        <code className="perm-code">{perm.codigo}</code>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          <div className="modal-footer">
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando…' : editingRole ? 'Guardar Cambios' : 'Registrar Rol'}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={closeRoleModal} disabled={saving}>
+          <div className="modal-footer-premium">
+            <button type="button" className="btn-premium secondary" onClick={closeRoleModal} disabled={saving}>
               Cancelar
+            </button>
+            <button type="submit" className="btn-premium primary" disabled={saving}>
+              <FontAwesomeIcon icon={faLock} style={{marginRight: '8px'}} />
+              {saving ? 'Guardando…' : editingRole ? 'Actualizar Rol' : 'Crear Rol Premium'}
             </button>
           </div>
         </form>
@@ -423,31 +483,40 @@ export default function RoleManagement({ token }) {
         contentLabel="Nuevo Permiso"
       >
         <div className="modal-header">
-          <h3 className="modal-title">Nuevo Permiso</h3>
+          <h3 className="modal-title">Nuevo Permiso del Sistema</h3>
         </div>
         <form onSubmit={savePerm} className="role-form">
-          <div className="form-row">
-            <label>Código</label>
-            <input
-              name="codigo"
-              value={permForm.codigo}
-              onChange={onPermChange}
-              placeholder="p.ej. ventas.crear"
-            />
-          </div>
-          <div className="form-row">
-            <label>Nombre</label>
-            <input
-              name="nombre_permiso"
-              value={permForm.nombre_permiso}
-              onChange={onPermChange}
-              placeholder="p.ej. Crear ventas"
-            />
+          <div className="modal-body-premium">
+            <div className="form-row">
+              <label>Código Técnico</label>
+              <div className="input-with-icon">
+                <FontAwesomeIcon icon={faTag} className="field-icon" />
+                <input
+                  name="codigo"
+                  value={permForm.codigo}
+                  onChange={onPermChange}
+                  placeholder="p.ej. ventas.crear, reportes.ver…"
+                />
+              </div>
+              <small className="muted-text">Este código identifica al permiso en el código fuente.</small>
+            </div>
+            <div className="form-row">
+              <label>Nombre Descriptivo</label>
+              <div className="input-with-icon">
+                <FontAwesomeIcon icon={faEdit} className="field-icon" />
+                <input
+                  name="nombre_permiso"
+                  value={permForm.nombre_permiso}
+                  onChange={onPermChange}
+                  placeholder="p.ej. Crear ventas, Ver reportes financieros…"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="modal-footer">
-            <button type="submit" className="btn btn-accent">Crear Permiso</button>
-            <button type="button" className="btn btn-secondary" onClick={closePermModal}>Cancelar</button>
+          <div className="modal-footer-premium">
+            <button type="button" className="btn-premium secondary" onClick={closePermModal}>Cancelar</button>
+            <button type="submit" className="btn-premium primary">Crear Permiso Autorizado</button>
           </div>
         </form>
       </Modal>
@@ -461,21 +530,24 @@ export default function RoleManagement({ token }) {
         contentLabel="Permisos del sistema"
       >
         <div className="modal-header">
-          <h3 className="modal-title">Permisos del sistema</h3>
-          <span className="muted">Total: {availablePermisos.length}</span>
+          <h3 className="modal-title">Permisos del Sistema</h3>
+          <span className="badge-pill pill-gray">Total: {availablePermisos.length}</span>
         </div>
 
-        <div className="form-row" style={{ marginBottom: 8 }}>
-          <label>Búsqueda</label>
-          <input
-            type="text"
-            placeholder="Buscar por código o nombre…"
-            value={permSearch}
-            onChange={(e) => setPermSearch(e.target.value)}
-          />
-        </div>
+        <div className="modal-body-premium">
+          <div className="search-bar-premium" style={{ marginBottom: '20px' }}>
+            <div className="search-input-wrapper">
+              <FontAwesomeIcon icon={faSearch} className="search-icon" />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Buscar por código o nombre…"
+                value={permSearch}
+                onChange={(e) => setPermSearch(e.target.value)}
+              />
+            </div>
+          </div>
 
-        <div className="perm-list-body">
           <div className="table-responsive">
             <table className="role-table perm-list-table">
               <thead>
@@ -489,19 +561,21 @@ export default function RoleManagement({ token }) {
               <tbody>
                 {filteredPerms.map((p) => (
                   <tr key={p.id_permiso}>
-                    <td>{p.id_permiso}</td>
-                    <td>{p.codigo}</td>
-                    <td>{p.nombre_permiso}</td>
+                    <td><span className="role-id-tag">#{p.id_permiso}</span></td>
+                    <td><code className="perm-code" style={{fontSize: '0.8rem'}}>{p.codigo}</code></td>
+                    <td className="role-name-main" style={{fontSize: '0.9rem'}}>{p.nombre_permiso}</td>
                     <td>
-                      <button className="btn btn-secondary btn-sm" onClick={() => copyToClipboard(p.codigo)}>
-                        Copiar
-                      </button>
+                      <div className="actions-premium">
+                        <button className="action-btn edit-btn" onClick={() => copyToClipboard(p.codigo)} title="Copiar Código">
+                          <FontAwesomeIcon icon={faTag} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
                 {filteredPerms.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="muted">Sin resultados…</td>
+                    <td colSpan={4} className="muted-text" style={{padding: '24px', textAlign: 'center'}}>Sin resultados…</td>
                   </tr>
                 )}
               </tbody>
@@ -509,8 +583,8 @@ export default function RoleManagement({ token }) {
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={closePermListModal}>Cerrar</button>
+        <div className="modal-footer-premium">
+          <button className="btn-premium secondary" onClick={closePermListModal}>Cerrar Catálogo</button>
         </div>
       </Modal>
     </div>

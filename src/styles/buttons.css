@@ -30,30 +30,30 @@ a.btn[disabled],
 .btn[disabled] { opacity: .6; cursor: not-allowed; }
 
 /* Variantes */
-.btn--secondary {
+.btn.btn--secondary {
   --btn-bg:        var(--color-secondary, #54a0ff);
   --btn-bg-hover:  #3f8cf0;
   --btn-bg-active: #2b6fcb;
 }
-.btn--outline {
+.btn.btn--outline {
   --btn-bg: transparent;
   --btn-color: var(--color-primary, #2e86de);
   --btn-border: var(--color-primary, #2e86de);
 }
-.btn--danger {
+.btn.btn--danger {
   --btn-bg:        var(--color-danger, #ef4444);
   --btn-bg-hover:  #dc2626;
   --btn-bg-active: #b91c1c;
 }
-.btn--success {
+.btn.btn--success {
   --btn-bg:        var(--color-success, #10b981);
   --btn-bg-hover:  #059669;
   --btn-bg-active: #047857;
 }
 
 /* Tamaños */
-.btn--sm { height: var(--control-height-sm, 34px); padding: 0 10px; font-size: 13px; }
-.btn--lg { height: var(--control-height-lg, 46px); padding: 0 18px; font-size: 15px; }
+.btn.btn--sm { height: var(--control-height-sm, 34px); padding: 0 10px; font-size: 13px; }
+.btn.btn--lg { height: var(--control-height-lg, 46px); padding: 0 18px; font-size: 15px; }
 
 /* Icon-only */
 .btn--icon { width: var(--control-height-md, 40px); padding: 0; }

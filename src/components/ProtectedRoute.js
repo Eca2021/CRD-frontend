@@ -10,29 +10,53 @@ const ProtectedRoute = ({
   userRoles = [],
   requiredRoles = [],
   userPermissions = [],
-  requiredPermissions = []
+  requiredPermissions = [],
+  id_empresa = null
 }) => {
-  console.log("🧪 Entrando a ProtectedRoute:", {
+  // 1. Detección de Roles Elevados (Pase Maestro)
+  const isAdmin = userRoles.some(r => {
+    const rName = typeof r === 'string' ? r : (r.nombre || r.name || r.nombre_rol || '');
+    const upper = rName.toUpperCase().trim();
+    return upper === 'ADMIN' || upper === 'SUPERADMIN';
+  });
+
+  // 2. Detección específica de SuperAdmin Global (Master maestro)
+  const isSuperAdminGlobal = isAdmin && userRoles.some(r => {
+    const rName = typeof r === 'string' ? r : (r.nombre || r.name || r.nombre_rol || '');
+    return rName.toUpperCase().trim() === 'SUPERADMIN';
+  }) && (
+    id_empresa === null || 
+    id_empresa === undefined || 
+    id_empresa === 'null' || 
+    id_empresa === 'undefined' ||
+    String(id_empresa) === 'null' ||
+    isNaN(id_empresa)
+  );
+
+  console.log("🛡️ [DEBUG ProtectedRoute]", {
+    path: window.location.pathname,
     isAuthenticated,
-    token,
+    isAdmin,
+    isSuperAdminGlobal,
+    id_empresa,
     userRoles,
-    userPermissions,
-    requiredRoles,
-    requiredPermissions
+    requiredPermissions,
+    decision: isAdmin ? "BYPASS ROLE" : "VAL_RESTRICCION"
   });
 
   if (!isAuthenticated || !token) {
-    console.warn("❌ ProtectedRoute: Usuario no autenticado o token ausente. Redirigiendo a /login.");
-    //Swal.fire("Acceso denegado", "Debes iniciar sesión", "warning");
+    console.warn("❌ ProtectedRoute: Usuario no autenticado.");
     return <Navigate to="/login" replace />;
   }
 
-  // Admin bypass
-  const isAdmin = userRoles.some(r => r.toUpperCase() === 'ADMIN');
+  // Si tiene un rol administrativo (Admin o SuperAdmin), le otorgamos paso libre a la ruta. 
+  // El aislamiento de datos se maneja internamente en cada componente.
   if (isAdmin) {
-    console.log("✅ ProtectedRoute: Usuario es Admin. Acceso concedido.");
     return children;
   }
+
+  // Solo permitimos el paso si el usuario posee los roles o permisos requeridos explícitamente en el App.js.
+  // Ya no hay bypass automático compartido para evitar mezclar ADMIN local con SUPERADMIN global.
 
   if (requiredRoles.length > 0) {
     const hasRole = requiredRoles.some(role => userRoles.some(ur => {

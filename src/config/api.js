@@ -1,6 +1,4 @@
-// 1) Base de la API (usa .env si existe; si no, fallback local)
-const RAW_BASE =
-  process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000/api';
+const RAW_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 export const API_BASE_URL = RAW_BASE.replace(/\/$/, '');
 
@@ -71,6 +69,7 @@ export const endpoints = {
   roles: `${API_BASE_URL}/roles/`,
   clients: `${API_BASE_URL}/clientes/`,
   rates: `${API_BASE_URL}/tasas/`,
+  rules: `${API_BASE_URL}/reglas/`,
   credits: {
     base: `${API_BASE_URL}/creditos/`,
     preview: `${API_BASE_URL}/creditos/preview`,
@@ -95,11 +94,17 @@ export const endpoints = {
     confirm: (id) => `${API_BASE_URL}/cash-register/${id}/confirm`,
   },
 
-  payments: `${API_BASE_URL}/pagos/`,
+  payments: {
+    base: `${API_BASE_URL}/pagos/`,
+    auditoria: `${API_BASE_URL}/pagos/auditoria`,
+  },
   paymentMethods: `${API_BASE_URL}/pagos/formas_pago`,
   accounting: {
     dashboard: `${API_BASE_URL}/contabilidad/dashboard`,
     entries: `${API_BASE_URL}/contabilidad/asientos`,
     apertura: `${API_BASE_URL}/contabilidad/apertura`,
-  }
+    cuentas: `${API_BASE_URL}/contabilidad/cuentas`,
+    glosas: `${API_BASE_URL}/contabilidad/glosas`,
+  },
+  empresas: `${API_BASE_URL}/empresas/`
 };

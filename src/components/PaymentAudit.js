@@ -5,6 +5,11 @@ import Swal from 'sweetalert2';
 function PaymentAudit() {
     const [auditLogs, setAuditLogs] = useState([]);
     const [loading, setLoading] = useState(true);
+    
+    // Paginación y Búsqueda
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     useEffect(() => {
         fetchLogs();
@@ -31,6 +36,39 @@ function PaymentAudit() {
         }
     };
 
+    // Lógica de Filtrado y Paginación
+    const filteredLogs = auditLogs.filter(log => {
+        const q = searchTerm.toLowerCase();
+        return (
+            (log.usuario_nombre || '').toLowerCase().includes(q) ||
+            (log.cliente_nombre || '').toLowerCase().includes(q) ||
+            (log.cliente_ci || '').toLowerCase().includes(q) ||
+            (log.observacion || '').toLowerCase().includes(q) ||
+            (log.id_pago && String(log.id_pago).includes(q))
+        );
+    });
+
+    const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentRecords = filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
+
+    const onSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1); // Reset a primera página al buscar
+    };
+
+    const onItemCountChange = (e) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1);
+    };
+
     return (
         <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 lg:p-12 font-sans transition-all">
             {/* Header with Glassmorphism effect */}
@@ -50,15 +88,44 @@ function PaymentAudit() {
                             </p>
                         </div>
                     </div>
-                    <button 
-                        onClick={fetchLogs}
-                        className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 font-bold px-6 py-3 rounded-2xl border border-slate-200 shadow-sm transition-all active:scale-95 group"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Actualizar Logs
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                        {/* Buscador de Cliente */}
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                placeholder="Buscar por cliente, detalle o ID..."
+                                className="bg-white border border-slate-200 rounded-2xl py-3 pl-12 pr-6 text-slate-700 font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all w-[320px] shadow-sm"
+                                value={searchTerm}
+                                onChange={onSearchChange}
+                            />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm">
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-tighter">Registros:</span>
+                            <select 
+                                className="bg-transparent border-none text-slate-700 font-black focus:ring-0 outline-none cursor-pointer"
+                                value={itemsPerPage}
+                                onChange={onItemCountChange}
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                            </select>
+                        </div>
+
+                        <button 
+                            onClick={fetchLogs}
+                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-2xl shadow-lg shadow-indigo-200 transition-all active:scale-95 group"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Refrescar
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -68,13 +135,12 @@ function PaymentAudit() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse">
                             <thead>
-                                <tr className="bg-slate-50/50 border-b border-slate-100">
-                                    <th className="px-8 py-6 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Acción</th>
-                                    <th className="px-8 py-6 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Usuario</th>
-                                    <th className="px-8 py-6 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Fecha y Hora</th>
-                                    <th className="px-8 py-6 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Monto</th>
-                                    <th className="px-8 py-6 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Detalle</th>
-                                    <th className="px-8 py-6 text-left text-xs font-black text-slate-400 uppercase tracking-widest">IP Origen</th>
+                                <tr className="bg-slate-50/50 border-b border-slate-100 uppercase tracking-widest text-[10px] font-black text-slate-400">
+                                    <th className="px-8 py-6 text-left">Cliente / Deudor</th>
+                                    <th className="px-8 py-6 text-left">Concepto / Detalle</th>
+                                    <th className="px-8 py-6 text-left">Responsable</th>
+                                    <th className="px-8 py-6 text-left">Fecha y Hora</th>
+                                    <th className="px-8 py-6 text-right">Monto</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
@@ -84,55 +150,51 @@ function PaymentAudit() {
                                             <td colSpan="6" className="px-8 py-6"><div className="h-8 bg-slate-100 rounded-xl w-full"></div></td>
                                         </tr>
                                     ))
-                                ) : auditLogs.length === 0 ? (
+                                ) : currentRecords.length === 0 ? (
                                     <tr>
-                                        <td colSpan="6" className="px-8 py-20 text-center">
+                                        <td colSpan="5" className="px-8 py-20 text-center">
                                             <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-50 rounded-full mb-4">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                                 </svg>
                                             </div>
-                                            <p className="text-slate-400 font-bold text-lg">No se encontraron registros de auditoría</p>
+                                            <p className="text-slate-400 font-bold text-lg">No se encontraron pagos con ese criterio</p>
                                         </td>
                                     </tr>
                                 ) : (
-                                    auditLogs.map((log) => (
-                                        <tr key={log.id_audit} className="hover:bg-indigo-50/30 transition-colors group">
+                                    currentRecords.map((log) => (
+                                        <tr key={log.id_audit} className="hover:bg-indigo-50/20 transition-colors group">
                                             <td className="px-8 py-5">
-                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase border tracking-tighter ${getActionColor(log.accion)} shadow-sm`}>
-                                                    {log.accion}
-                                                </span>
-                                            </td>
-                                            <td className="px-8 py-5">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 font-black text-xs border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                                                        {log.usuario_nombre?.charAt(0) || 'U'}
-                                                    </div>
-                                                    <span className="font-bold text-slate-700">{log.usuario_nombre}</span>
+                                                <div className="flex flex-col">
+                                                    <span className="font-black text-slate-800 leading-none">{log.cliente_nombre}</span>
+                                                    <span className="text-[10px] font-black text-indigo-500 uppercase mt-1 tracking-widest">CI: {log.cliente_ci}</span>
                                                 </div>
                                             </td>
                                             <td className="px-8 py-5">
+                                                <div className="max-w-xs">
+                                                    <p className="font-bold text-slate-600 truncate text-xs" title={log.observacion}>
+                                                        {log.observacion}
+                                                    </p>
+                                                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">ID Pago: #{log.id_pago}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 font-black text-[10px] border border-slate-200">
+                                                        {log.usuario_nombre?.charAt(0) || 'U'}
+                                                    </div>
+                                                    <span className="font-bold text-slate-600 text-xs">{log.usuario_nombre}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5 text-sm">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-slate-700">{new Date(log.fecha_accion).toLocaleDateString()}</span>
                                                     <span className="text-[10px] font-black text-slate-400">{new Date(log.fecha_accion).toLocaleTimeString()}</span>
                                                 </div>
                                             </td>
                                             <td className="px-8 py-5 text-right">
-                                                <span className="font-black text-slate-800 text-lg">
+                                                <span className="font-black text-indigo-600 text-xl tracking-tighter">
                                                     {log.monto_registrado ? Number(log.monto_registrado).toLocaleString() : '---'}
-                                                </span>
-                                            </td>
-                                            <td className="px-8 py-5">
-                                                <div className="max-w-xs">
-                                                    <p className="font-bold text-slate-600 truncate" title={log.observacion}>
-                                                        {log.observacion}
-                                                    </p>
-                                                    <span className="text-[10px] font-black text-indigo-400 uppercase">ID Pago: #{log.id_pago}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-5">
-                                                <span className="font-mono text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                                                    {log.direccion_ip || '127.0.0.1'}
                                                 </span>
                                             </td>
                                         </tr>
@@ -140,6 +202,36 @@ function PaymentAudit() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                    <div className="bg-slate-50/80 px-8 py-6 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="text-slate-500 font-bold text-sm">
+                            Mostrando <span className="text-slate-900">{indexOfFirstItem + 1}</span> a <span className="text-slate-900">{Math.min(indexOfLastItem, filteredLogs.length)}</span> de <span className="text-slate-900">{filteredLogs.length}</span> registros
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                            
+                            <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-indigo-600 font-black text-sm shadow-sm">
+                                Página {currentPage} de {totalPages || 1}
+                            </div>
+
+                            <button 
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

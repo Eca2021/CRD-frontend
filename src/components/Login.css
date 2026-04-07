@@ -132,6 +132,26 @@
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  padding-right: 45px !important; /* Espacio para el ojo */
+}
+
+/* Ocultar iconos nativos de ver contraseña de navegadores (Edge/Chrome) */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+input::-webkit-password-toggle-button {
+  display: none;
+}
+
 .btn-primary {
   width: 100%;
   padding: 14px;
