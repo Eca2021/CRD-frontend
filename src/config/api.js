@@ -77,8 +77,7 @@ export const endpoints = {
   },
   documentTypes: `${API_BASE_URL}/document_types/`,
   invoiceTypes: `${API_BASE_URL}/invoice_types/`,
-  invoiceFormats: `${API_BASE_URL}/invoice_formats/`,
-  paymentMethods: `${API_BASE_URL}/payment_methods/`,
+  invoiceFormats: `${API_BASE_URL}/invoice_formats/`,  
   paymentConditions: `${API_BASE_URL}/payment_conditions/`,
   invoiceNumbers: `${API_BASE_URL}/invoice_numbers/`,
   invoices: `${API_BASE_URL}/invoices/`,     // ← importante
